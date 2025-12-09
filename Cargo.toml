@@ -1,0 +1,12 @@
+[package]
+name = "pokebrains"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
+futures-util = "0.3"
+colored = "3.0.0"
+anyhow = "1.0.100"
+kalosm = "0.4.0"
