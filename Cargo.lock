@@ -921,7 +921,9 @@ dependencies = [
  "anyhow",
  "colored",
  "futures-util",
+ "reqwest",
  "rig-core",
+ "serde",
  "tokio",
  "tokio-tungstenite",
 ]
