@@ -1,6 +1,6 @@
 mod ai;
 mod client;
-mod parser;
+mod logs;
 mod pokeapi;
 mod tools;
 

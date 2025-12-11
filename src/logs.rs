@@ -1,4 +1,19 @@
-#[allow(unused)]
+pub struct BattleEvents {
+    pub events: Vec<String>,
+}
+
+impl BattleEvents {
+    pub fn new() -> Self {
+        BattleEvents { events: Vec::new() }
+    }
+
+    pub fn add_event(&mut self, event: &str) {
+        if let Some(parsed) = parse_battle_log(event) {
+            self.events.push(parsed);
+        }
+    }
+}
+
 pub fn parse_battle_log(line: &str) -> Option<String> {
     let parts: Vec<&str> = line.split('|').collect();
     if parts.len() < 2 {

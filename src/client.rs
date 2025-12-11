@@ -1,3 +1,4 @@
+use crate::logs::BattleEvents;
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
@@ -10,6 +11,7 @@ pub struct BattleClient {
     url: String,
     connection_timeout: u64,
     is_connected: bool,
+    pub event_logs: BattleEvents,
 }
 
 impl BattleClient {
@@ -19,6 +21,7 @@ impl BattleClient {
             url: "wss://sim3.psim.us/showdown/websocket".to_string(),
             connection_timeout,
             is_connected: false,
+            event_logs: BattleEvents::new(),
         }
     }
 
@@ -74,7 +77,7 @@ impl BattleClient {
         Ok(())
     }
 
-    pub async fn handle_message(&self, text: &str) -> Result<()> {
+    pub async fn handle_message(&mut self, text: &str) -> Result<()> {
         let mut current_room = String::new();
         for line in text.lines() {
             if line.is_empty() {
@@ -87,6 +90,10 @@ impl BattleClient {
                 // Only print messages for the joined battle room
                 if line.starts_with('|') {
                     self.parse_battle_log(line);
+                    self.event_logs.add_event(line);
+                    println!();
+                    println!("Debugs");
+                    dbg!(&self.event_logs.events);
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());
                 }

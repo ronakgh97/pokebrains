@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     println!();
 
     print!("{}", "Enter room ID: ".yellow());
-    stdout().flush().unwrap();
+    stdout().flush()?;
     let mut room_id = String::new();
     stdin()
         .read_line(&mut room_id)
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     } else {
         room_id
     };
-    if room_id.is_empty() || !room_id.contains("play.pokemonshowdown.com/") {
+    if room_id.is_empty() {
         println!(
             "{}",
             "Room ID is null or invalid, connecting to lobby".yellow()
