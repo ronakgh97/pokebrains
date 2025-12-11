@@ -2,6 +2,7 @@ use anyhow::Result;
 use rig::agent::Agent;
 use rig::client::CompletionClient;
 use rig::providers::openai;
+use rig::providers::openai::Message;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
 #[allow(unused)]
@@ -16,6 +17,8 @@ pub struct BattleAgent {
     opponent: String,
     model: String,
     model_type: ModelType,
+    agent: Option<Agent<ResponsesCompletionModel>>,
+    memory: Vec<Message>,
 }
 
 impl BattleAgent {
@@ -25,10 +28,12 @@ impl BattleAgent {
             opponent: opponent.to_string(),
             model: model.to_string(),
             model_type,
+            agent: None,
+            memory: Vec::new(),
         }
     }
 
-    pub fn _build_agent(self, api_key: &str) -> Result<Agent<ResponsesCompletionModel>> {
+    pub fn _build_agent(self, api_key: &str) -> Result<Self> {
         let agent = match self.model_type {
             ModelType::Cloud => {
                 let client: openai::Client = openai::Client::builder()
@@ -37,7 +42,7 @@ impl BattleAgent {
                     .build()?;
 
                 client
-                    .agent(self.model)
+                    .agent(self.model.clone())
                     .preamble("")
                     .context("")
                     .temperature(0.9)
@@ -50,7 +55,7 @@ impl BattleAgent {
                     .build()?;
 
                 client
-                    .agent(self.model)
+                    .agent(self.model.clone())
                     .preamble("")
                     .context("")
                     .temperature(0.8)
@@ -58,6 +63,9 @@ impl BattleAgent {
             }
         };
 
-        Ok(agent)
+        Ok(Self {
+            agent: Some(agent),
+            ..self
+        })
     }
 }
