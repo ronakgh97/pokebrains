@@ -22,11 +22,19 @@ async fn main() -> Result<()> {
     println!();
     println!();
 
-    print!("{}", "Enter room ID: ".yellow());
+    println!("{}", "Enter room ID: ".yellow());
+    print!("{} ", ">>>".yellow());
     stdout().flush()?;
     let mut room_id = String::new();
     stdin()
         .read_line(&mut room_id)
+        .expect("Failed to read input");
+    println!("{}", "Enter your username: ".yellow());
+    print!("{} ", ">>>".yellow());
+    stdout().flush()?;
+    let mut username = String::new();
+    stdin()
+        .read_line(&mut username)
         .expect("Failed to read input");
     let room_id = room_id.trim();
     let room_id = if room_id.contains("play.pokemonshowdown.com/") {
