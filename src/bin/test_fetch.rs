@@ -1,5 +1,5 @@
-use pokebrains::{Result, Colorize};
 use pokebrains::fetch_pokemon_info;
+use pokebrains::{Colorize, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {

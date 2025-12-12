@@ -89,10 +89,10 @@ impl BattleClient {
             } else if current_room == self.room_id {
                 // Only print messages for the joined battle room
                 if line.starts_with('|') {
-                    self.parse_battle_log(line);
+                    //self.parse_battle_log(line);
                     self.event_logs.add_event(line);
                     println!();
-                    println!("Debugs");
+                    println!("Event count: {}", self.event_logs.events.len());
                     dbg!(&self.event_logs.events);
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());
@@ -102,6 +102,7 @@ impl BattleClient {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn parse_battle_log(&self, line: &str) {
         let parts: Vec<&str> = line.splitn(3, '|').collect();
         if parts.len() < 2 {
