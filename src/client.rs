@@ -15,13 +15,13 @@ pub struct BattleClient {
 }
 
 impl BattleClient {
-    pub fn new(room_id: &str, connection_timeout: u64) -> Self {
+    pub fn new(room_id: &str, user: String, connection_timeout: u64) -> Self {
         BattleClient {
             room_id: room_id.to_string(),
             url: "wss://sim3.psim.us/showdown/websocket".to_string(),
             connection_timeout,
             is_connected: false,
-            event_logs: BattleEvents::new(),
+            event_logs: BattleEvents::new(user),
         }
     }
 

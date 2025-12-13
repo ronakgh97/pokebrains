@@ -47,13 +47,13 @@ async fn main() -> Result<()> {
             "{}",
             "Room ID is null or invalid, connecting to lobby".yellow()
         );
-        let mut battle_room = BattleClient::new("lobby", 30);
+        let mut battle_room = BattleClient::new("lobby", username, 30);
         if let Err(e) = battle_room.connect().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     } else {
         println!("{}", format!("Connecting to room: {}", room_id).green());
-        let mut battle_room = BattleClient::new(room_id, 30);
+        let mut battle_room = BattleClient::new(room_id, username, 30);
         if let Err(e) = battle_room.connect().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }

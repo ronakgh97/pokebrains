@@ -2,6 +2,8 @@
 pub struct BattleEvents {
     pub team: [Team; 2], //<- Unused
     pub init: String,
+    pub assist:  String,
+    pub against: String,
     pub event_buffer: Vec<String>,
     pub events: Vec<Vec<String>>,
     pub battle_started: bool,
@@ -16,10 +18,12 @@ pub struct Team {
 }
 
 impl BattleEvents {
-    pub fn new() -> Self {
+    pub fn new(user: String) -> Self {
         BattleEvents {
             team: [Team::default(), Team::default()], //<- Unused
             init: String::new(),
+            assist: user,
+            against: String::new(),
             event_buffer: Vec::new(),
             events: Vec::new(),
             battle_started: false,
