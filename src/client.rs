@@ -92,8 +92,11 @@ impl BattleClient {
                     //self.parse_battle_log(line);
                     self.event_logs.add_event(line);
                     println!();
-                    println!("Event count: {}", self.event_logs.events.len());
-                    dbg!(&self.event_logs.events);
+                    println!("Event count: {}", &self.event_logs.events.len());
+                    println!("Event init: {}", &self.event_logs.init);
+                    for (i, event) in self.event_logs.events.clone().into_iter().enumerate() {
+                        println!("Index: {}\n Event: {:?}", i, event);
+                    }
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());
                 }
