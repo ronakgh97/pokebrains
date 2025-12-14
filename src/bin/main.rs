@@ -32,9 +32,9 @@ async fn main() -> Result<()> {
     println!("{}", "Enter your username: ".yellow());
     print!("{} ", ">>>".yellow());
     stdout().flush()?;
-    let mut username = String::new();
+    let mut player = String::new();
     stdin()
-        .read_line(&mut username)
+        .read_line(&mut player)
         .expect("Failed to read input");
     let room_id = room_id.trim();
     let room_id = if room_id.contains("play.pokemonshowdown.com/") {
@@ -47,13 +47,13 @@ async fn main() -> Result<()> {
             "{}",
             "Room ID is null or invalid, connecting to lobby".yellow()
         );
-        let mut battle_room = BattleClient::new("lobby", username, 30);
+        let mut battle_room = BattleClient::new("lobby", player, 30);
         if let Err(e) = battle_room.connect().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     } else {
         println!("{}", format!("Connecting to room: {}", room_id).green());
-        let mut battle_room = BattleClient::new(room_id, username, 30);
+        let mut battle_room = BattleClient::new(room_id, player, 30);
         if let Err(e) = battle_room.connect().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }

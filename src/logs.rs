@@ -2,8 +2,8 @@
 pub struct BattleEvents {
     pub team: [Team; 2], //<- Unused
     pub init: String,
-    pub assist:  String,
-    pub against: String,
+    pub assist: String,
+    pub user_slot: Option<String>, // "p1" or "p2" - which player slot the user is
     pub event_buffer: Vec<String>,
     pub events: Vec<Vec<String>>,
     pub battle_started: bool,
@@ -23,7 +23,7 @@ impl BattleEvents {
             team: [Team::default(), Team::default()], //<- Unused
             init: String::new(),
             assist: user,
-            against: String::new(),
+            user_slot: None,
             event_buffer: Vec::new(),
             events: Vec::new(),
             battle_started: false,
@@ -41,7 +41,7 @@ impl BattleEvents {
             self.battle_started = true;
 
             // Add turn marker to new buffer
-            if let Some(parsed) = parse_battle_log(event) {
+            if let Some(parsed) = parse_battle_log(event, &self.user_slot) {
                 self.event_buffer.push(parsed);
             }
             return;
@@ -49,18 +49,85 @@ impl BattleEvents {
 
         // Before first turn = init phase
         if !self.battle_started {
+            // Parse |player| messages to detect which slot the user is
+            self.parse_player_slot(event);
+
             if let Some(parsed) = parse_init(event) {
                 self.init.push_str(&parsed);
                 self.init.push('\n');
+
+                // Add user context once when battle starts
+                if parsed.contains("Battle started") && !self.init.contains("You are assisting") {
+                    let slot_info = match &self.user_slot {
+                        Some(slot) => format!(" (you are {})", slot),
+                        None => {
+                            // Couldn't match username - warn user
+                            panic!("WRONG USERNAME: Could not match username")
+                        }
+                    };
+                    self.init.push_str(&format!(
+                        "You are assisting: {}{}\n",
+                        self.assist, slot_info
+                    ));
+                }
             }
             return;
         }
 
         // During battle = add to current turn buffer
-        if let Some(parsed) = parse_battle_log(event) {
+        if let Some(parsed) = parse_battle_log(event, &self.user_slot) {
             self.event_buffer.push(parsed);
         }
     }
+
+    /// Parse |player| messages to detect which player slot (p1 or p2) the user is
+    /// Format: |player|p1|username|avatar|rating
+    fn parse_player_slot(&mut self, line: &str) {
+        if self.user_slot.is_some() {
+            return; // Already detected
+        }
+
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 4 && parts[1] == "player" {
+            let player_slot = parts[2]; // "p1" or "p2"
+            let username = parts[3].trim();
+
+            // Case-insensitive match
+            if username.to_lowercase() == self.assist.trim().to_lowercase() {
+                self.user_slot = Some(player_slot.to_string());
+            }
+        }
+    }
+}
+
+/// Replace p1/p2 player IDs with [You]/[Opponent] labels
+fn replace_player_ids(text: &str, user_slot: &Option<String>) -> String {
+    let Some(slot) = user_slot else {
+        return text.to_string(); // No slot detected yet, return unchanged
+    };
+
+    let (you_prefix, opp_prefix) = if slot == "p1" {
+        ("p1", "p2")
+    } else {
+        ("p2", "p1")
+    };
+
+    let mut result = text.to_string();
+
+    // Replace player slot variants (a, b for singles/doubles/triples)
+    for suffix in ['a', 'b'] {
+        result = result.replace(&format!("{}{}:", you_prefix, suffix), "[Assist]");
+        result = result.replace(&format!("{}{}:", opp_prefix, suffix), "[Against]");
+    }
+
+    // Handle bare p1:/p2: (side conditions like Stealth Rock)
+    result = result.replace(&format!("{}: ", you_prefix), "[Assist] ");
+    result = result.replace(&format!("{}: ", opp_prefix), "[Against] ");
+    // Also without space after colon
+    result = result.replace(&format!("{}:", you_prefix), "[Assist]");
+    result = result.replace(&format!("{}:", opp_prefix), "[Against]");
+
+    result
 }
 
 pub fn parse_init(line: &str) -> Option<String> {
@@ -92,13 +159,13 @@ pub fn parse_init(line: &str) -> Option<String> {
     }
 }
 
-pub fn parse_battle_log(line: &str) -> Option<String> {
+pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String> {
     let parts: Vec<&str> = line.split('|').collect();
     if parts.len() < 2 {
         return None;
     }
 
-    match parts[1] {
+    let result = match parts[1] {
         "turn" => {
             if parts.len() >= 3 {
                 Some(format!(" TURN {} ", parts[2]))
@@ -113,7 +180,7 @@ pub fn parse_battle_log(line: &str) -> Option<String> {
                 let details = parts[3]; // e.g., "Aurorus, L86, F"
                 let hp = parts.get(4).unwrap_or(&"100/100");
 
-                // Extract just the pokemon name
+                // Extract just the Pokémon name
                 let pokemon_name = details.split(',').next().unwrap_or(details);
 
                 Some(format!(
@@ -234,20 +301,20 @@ pub fn parse_battle_log(line: &str) -> Option<String> {
         }
 
         "-sidestart" => {
-            if parts.len() >= 3 {
+            if parts.len() >= 4 {
                 let side = parts[2].split(':').next().unwrap_or(parts[2]);
-                let condition = parts[2].split('|').last().unwrap_or(parts[2]);
-                Some(format!("{} set up {}", side, condition))
+                let condition = parts[3].split(':').last().unwrap_or(parts[3]);
+                Some(format!("{} set up {}", side, condition.trim()))
             } else {
                 None
             }
         }
 
         "-sideend" => {
-            if parts.len() >= 3 {
+            if parts.len() >= 4 {
                 let side = parts[2].split(':').next().unwrap_or(parts[2]);
-                let condition = parts[2].split('|').last().unwrap_or(parts[2]);
-                Some(format!("{}'s {} wore off", side, condition))
+                let condition = parts[3].split(':').last().unwrap_or(parts[3]);
+                Some(format!("{}'s {} wore off", side, condition.trim()))
             } else {
                 None
             }
@@ -334,5 +401,8 @@ pub fn parse_battle_log(line: &str) -> Option<String> {
             eprintln!("[DEBUG] Unknown event type: {}", parts[1]);
             None
         }
-    }
+    };
+
+    // Apply player ID replacement
+    result.map(|s| replace_player_ids(&s, user_slot))
 }
