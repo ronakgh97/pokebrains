@@ -2,8 +2,8 @@ use anyhow::Result;
 use rig::agent::Agent;
 use rig::client::CompletionClient;
 use rig::providers::openai;
-use rig::providers::openai::responses_api::ResponsesCompletionModel;
 use rig::providers::openai::Message;
+use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
 pub enum ModelType {
     Local,
@@ -13,12 +13,14 @@ pub enum ModelType {
 pub struct BattleAgent {
     model: String,
     model_type: ModelType,
+    #[allow(unused)]
     agent: Option<Agent<ResponsesCompletionModel>>,
+    #[allow(unused)]
     memory: Vec<Message>,
 }
 
 impl BattleAgent {
-    pub fn _new(user: &str, opponent: &str, model: &str, model_type: ModelType) -> Self {
+    pub fn _new(model: &str, model_type: ModelType) -> Self {
         BattleAgent {
             model: model.to_string(),
             model_type,
