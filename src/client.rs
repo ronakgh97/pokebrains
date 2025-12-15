@@ -1,4 +1,5 @@
-use crate::logs::BattleEvents;
+use crate::ai::BattleAgent;
+use crate::logs::{BattleEvents};
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
@@ -12,6 +13,7 @@ pub struct BattleClient {
     connection_timeout: u64,
     is_connected: bool,
     pub event_logs: BattleEvents,
+    pub ai_agent: Option<BattleAgent>,
 }
 
 impl BattleClient {
@@ -22,6 +24,7 @@ impl BattleClient {
             connection_timeout,
             is_connected: false,
             event_logs: BattleEvents::new(user),
+            ai_agent: None,
         }
     }
 
@@ -89,14 +92,14 @@ impl BattleClient {
             } else if current_room == self.room_id {
                 // Only print messages for the joined battle room
                 if line.starts_with('|') {
-                    //self.parse_battle_log(line);
+                    self.parse_log(line);
                     self.event_logs.add_event(line);
-                    println!();
+                    /*println!();
                     println!("Event count: {}", &self.event_logs.events.len());
                     println!("Event init: {}", &self.event_logs.init);
                     for (i, event) in self.event_logs.events.clone().into_iter().enumerate() {
                         println!("Index: {}\n Event: {:?}", i, event);
-                    }
+                    }*/
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());
                 }
@@ -106,7 +109,7 @@ impl BattleClient {
     }
 
     #[allow(dead_code)]
-    fn parse_battle_log(&self, line: &str) {
+    fn parse_log(&self, line: &str) {
         let parts: Vec<&str> = line.splitn(3, '|').collect();
         if parts.len() < 2 {
             return;

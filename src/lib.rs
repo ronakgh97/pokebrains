@@ -3,6 +3,7 @@ mod client;
 mod logs;
 mod pokeapi;
 
+pub use ai::{BattleAgent, ModelType};
 pub use anyhow::Result;
 pub use client::BattleClient;
 pub use colored::Colorize;
