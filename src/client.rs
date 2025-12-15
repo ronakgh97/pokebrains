@@ -1,5 +1,5 @@
 use crate::ai::BattleAgent;
-use crate::logs::{BattleEvents};
+use crate::logs::BattleEvents;
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
@@ -92,14 +92,15 @@ impl BattleClient {
             } else if current_room == self.room_id {
                 // Only print messages for the joined battle room
                 if line.starts_with('|') {
-                    self.parse_log(line);
+                    //self.parse_log(line);
                     self.event_logs.add_event(line);
-                    /*println!();
-                    println!("Event count: {}", &self.event_logs.events.len());
-                    println!("Event init: {}", &self.event_logs.init);
+                    println!();
+                    println!("Event count: {:?}", &self.event_logs.events.len());
+                    println!("Event team: {:?}", &self.event_logs.team);
+                    println!("Event init: {:?}", &self.event_logs.init);
                     for (i, event) in self.event_logs.events.clone().into_iter().enumerate() {
-                        println!("Index: {}\n Event: {:?}", i, event);
-                    }*/
+                        println!("Index: {:?}\n Event: {:?}", i, event);
+                    }
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());
                 }
