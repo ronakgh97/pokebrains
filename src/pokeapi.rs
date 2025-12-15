@@ -25,7 +25,7 @@ pub struct PokemonAbilitySlot {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PokemonMoveSlot { //<- Maybe too much context
+pub struct PokemonMoveSlot {
     pub r#move: NamedAPIResource,
 }
 

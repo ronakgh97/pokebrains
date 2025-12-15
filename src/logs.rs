@@ -58,17 +58,15 @@ impl BattleEvents {
 
                 // Add user context once when battle starts
                 if parsed.contains("Battle started") && !self.init.contains("You are assisting") {
-                    let slot_info = match &self.user_slot {
-                        Some(slot) => format!(" (you are {})", slot),
+                    match &self.user_slot {
+                        Some(_) => println!("User found: {}", self.assist),
                         None => {
-                            // Couldn't match username - warn user
+                            // Couldn't match username - crash program because idk what to do here 💀 (Help me!)
                             panic!("WRONG USERNAME: Could not match username")
                         }
                     };
-                    self.init.push_str(&format!(
-                        "You are assisting: {}{}\n",
-                        self.assist, slot_info
-                    ));
+                    self.init
+                        .push_str(&format!("You are assisting: {}\n", self.assist));
                 }
             }
             return;
@@ -100,7 +98,7 @@ impl BattleEvents {
     }
 }
 
-/// Replace p1/p2 player IDs with [You]/[Opponent] labels
+/// Replace p1/p2 player IDs with [Assist]/[Against] labels
 fn replace_player_ids(text: &str, user_slot: &Option<String>) -> String {
     let Some(slot) = user_slot else {
         return text.to_string(); // No slot detected yet, return unchanged

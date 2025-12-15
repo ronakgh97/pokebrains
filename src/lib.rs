@@ -2,7 +2,6 @@ mod ai;
 mod client;
 mod logs;
 mod pokeapi;
-mod tools;
 
 pub use anyhow::Result;
 pub use client::BattleClient;
