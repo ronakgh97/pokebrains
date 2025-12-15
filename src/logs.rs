@@ -294,7 +294,6 @@ pub fn parse_battle_log(
             }
         }
 
-        // TODO: Handle team battles (not implemented yet)
         // TODO: First switch implementation, mixed up of normal switch and drag
         "switch" | "drag" => {
             if parts.len() >= 4 {
