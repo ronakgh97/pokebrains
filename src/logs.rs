@@ -172,6 +172,8 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String
             }
         }
 
+        // TODO: Handle team battles (not implemented yet)
+        // TODO: First switch implementation, mixed up of normal switch and drag
         "switch" | "drag" => {
             if parts.len() >= 4 {
                 let pokemon_id = parts[2]; // e.g., "p1a: Aurorus"
