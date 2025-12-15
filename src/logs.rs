@@ -10,11 +10,10 @@ pub struct BattleEvents {
 }
 
 /// This only useful in team battles (currently not implemented)
-#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct Team {
     pub player: String,
-    pub pokemons: Vec<String>,
+    pub pokemon: Vec<String>,
 }
 
 impl BattleEvents {
@@ -30,7 +29,68 @@ impl BattleEvents {
         }
     }
 
-    pub fn add_event(&mut self, event: &str) {
+    fn add_setup(&mut self, event: &str) {
+        if let Some(title) = parse_title(event) {
+            if !self.init.is_empty() {
+                self.init.push('\n');
+            }
+            self.init.push_str(&title);
+        }
+
+        // Parse player slot first
+        self.parse_player_slot(event);
+
+        // Then handle player names
+        if let Some((slot, username)) = parse_player(event) {
+            if slot == "p1" {
+                self.team[0].player = username;
+            } else if slot == "p2" {
+                self.team[1].player = username;
+            }
+
+            // Check if we've found both players and can match username
+            if !self.team[0].player.is_empty()
+                && !self.team[1].player.is_empty()
+                && self.user_slot.is_none()
+            {
+                panic!(
+                    "WRONG USERNAME: Could not match username '{}' to either '{}' or '{}'",
+                    self.assist, self.team[0].player, self.team[1].player
+                );
+            }
+        }
+
+        if let Some((player_id, pokemon_list)) = parse_team_setup_by_player(event) {
+            // Add Pokémon to the correct team based on player_id
+            if player_id == "p1" {
+                self.team[0].pokemon.extend(pokemon_list);
+            } else if player_id == "p2" {
+                self.team[1].pokemon.extend(pokemon_list);
+            }
+        }
+        if let Some(start_msg) = parse_start(event) {
+            // Final check before battle starts
+            if self.user_slot.is_none() {
+                panic!(
+                    "WRONG USERNAME: Could not match username '{}' to either '{}' or '{}'",
+                    self.assist, self.team[0].player, self.team[1].player
+                );
+            }
+
+            self.init.push_str(&start_msg);
+
+            // Add user context when battle starts
+            if !self.battle_started {
+                self.init.push('\n');
+                self.init
+                    .push_str(&format!("You are assisting: {}", self.assist));
+            }
+
+            self.battle_started = true;
+        }
+    }
+
+    fn add_turns(&mut self, event: &str) {
         // Handle turn markers
         if event.contains("|turn|") {
             // Save previous turn if exists
@@ -38,43 +98,25 @@ impl BattleEvents {
                 self.events.push(self.event_buffer.clone());
                 self.event_buffer.clear();
             }
-            self.battle_started = true;
-
             // Add turn marker to new buffer
-            if let Some(parsed) = parse_battle_log(event, &self.user_slot) {
+            if let Some(parsed) = parse_battle_log(event, &self.user_slot, &self.team) {
                 self.event_buffer.push(parsed);
             }
             return;
         }
 
-        // Before first turn = init phase
-        if !self.battle_started {
-            // Parse |player| messages to detect which slot the user is
-            self.parse_player_slot(event);
+        // Add event to current turn buffer
+        if let Some(parsed) = parse_battle_log(event, &self.user_slot, &self.team) {
+            self.event_buffer.push(parsed);
 
-            if let Some(parsed) = parse_init(event) {
-                self.init.push_str(&parsed);
-                self.init.push('\n');
-
-                // Add user context once when battle starts
-                if parsed.contains("Battle started") && !self.init.contains("You are assisting") {
-                    match &self.user_slot {
-                        Some(_) => println!("User found: {}", self.assist),
-                        None => {
-                            // Couldn't match username - crash program because idk what to do here 💀 (Help me!)
-                            panic!("WRONG USERNAME: Could not match username")
-                        }
-                    };
-                    self.init
-                        .push_str(&format!("You are assisting: {}\n", self.assist));
+            // Check if this is a game-ending event
+            if event.contains("|win|") || event.contains("|tie|") {
+                // Flush the buffer immediately for game-ending events
+                if !self.event_buffer.is_empty() {
+                    self.events.push(self.event_buffer.clone());
+                    self.event_buffer.clear();
                 }
             }
-            return;
-        }
-
-        // During battle = add to current turn buffer
-        if let Some(parsed) = parse_battle_log(event, &self.user_slot) {
-            self.event_buffer.push(parsed);
         }
     }
 
@@ -90,45 +132,111 @@ impl BattleEvents {
             let player_slot = parts[2]; // "p1" or "p2"
             let username = parts[3].trim();
 
-            // Case-insensitive match
-            if username.to_lowercase() == self.assist.trim().to_lowercase() {
+            // Case-insensitive match with trimming on both sides
+            if username.to_lowercase().trim().to_lowercase() == self.assist.trim().to_lowercase() {
                 self.user_slot = Some(player_slot.to_string());
             }
         }
     }
+
+    /// Main entry point for adding battle events - routes to setup or turns based on battle state
+    pub fn add_event(&mut self, event: &str) {
+        if !self.battle_started {
+            self.add_setup(event);
+        } else {
+            self.add_turns(event);
+        }
+    }
 }
 
-/// Replace p1/p2 player IDs with [Assist]/[Against] labels
-fn replace_player_ids(text: &str, user_slot: &Option<String>) -> String {
+/// Replace p1/p2 player IDs with [Assist]/[Against] labels with usernames
+fn replace_player_ids(text: &str, user_slot: &Option<String>, team: &[Team; 2]) -> String {
     let Some(slot) = user_slot else {
         return text.to_string(); // No slot detected yet, return unchanged
     };
 
-    let (you_prefix, opp_prefix) = if slot == "p1" {
-        ("p1", "p2")
+    let (you_prefix, opp_prefix, your_name, opp_name) = if slot == "p1" {
+        ("p1", "p2", &team[0].player, &team[1].player)
     } else {
-        ("p2", "p1")
+        ("p2", "p1", &team[1].player, &team[0].player)
     };
 
     let mut result = text.to_string();
 
     // Replace player slot variants (a, b for singles/doubles/triples)
     for suffix in ['a', 'b'] {
-        result = result.replace(&format!("{}{}:", you_prefix, suffix), "[Assist]");
-        result = result.replace(&format!("{}{}:", opp_prefix, suffix), "[Against]");
+        // With colon (e.g., "p1a: Pikachu")
+        result = result.replace(
+            &format!("{}{}:", you_prefix, suffix),
+            &format!("[Assist: {}]", your_name),
+        );
+        result = result.replace(
+            &format!("{}{}:", opp_prefix, suffix),
+            &format!("[Against: {}]", opp_name),
+        );
     }
 
     // Handle bare p1:/p2: (side conditions like Stealth Rock)
-    result = result.replace(&format!("{}: ", you_prefix), "[Assist] ");
-    result = result.replace(&format!("{}: ", opp_prefix), "[Against] ");
+    result = result.replace(
+        &format!("{}: ", you_prefix),
+        &format!("[Assist: {}] ", your_name),
+    );
+    result = result.replace(
+        &format!("{}: ", opp_prefix),
+        &format!("[Against: {}] ", opp_name),
+    );
     // Also without space after colon
-    result = result.replace(&format!("{}:", you_prefix), "[Assist]");
-    result = result.replace(&format!("{}:", opp_prefix), "[Against]");
+    result = result.replace(
+        &format!("{}:", you_prefix),
+        &format!("[Assist: {}]", your_name),
+    );
+    result = result.replace(
+        &format!("{}:", opp_prefix),
+        &format!("[Against: {}]", opp_name),
+    );
 
     result
 }
 
-pub fn parse_init(line: &str) -> Option<String> {
+pub fn parse_player(line: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = line.split('|').collect();
+    if parts.len() < 4 {
+        return None;
+    }
+
+    if parts[1] == "player" {
+        let slot = parts[2].to_string(); // "p1" or "p2"
+        let username = parts[3].trim().to_string(); // Trim whitespace from username
+        Some((slot, username))
+    } else {
+        None
+    }
+}
+
+/// Excepted return format: (player_slot, [Pokémon_names])
+pub fn parse_team_setup_by_player(line: &str) -> Option<(String, Vec<String>)> {
+    let parts: Vec<&str> = line.split('|').collect();
+    if parts.len() < 4 {
+        return None;
+    }
+
+    if parts[1] == "poke" {
+        let slot = parts[2].to_string(); // "p1a", "p2b", etc.
+        let details = parts[3].to_string(); // e.g., "Pikachu, L50, M"
+
+        // Extract player ID (p1 or p2) from slot (p1a, p2b, etc.)
+        let player_id = slot.chars().take(2).collect::<String>();
+
+        // Extract Pokémon name (first part before comma)
+        let pokemon_name = details.split(',').next().unwrap_or(&details).to_string();
+
+        Some((player_id, vec![pokemon_name]))
+    } else {
+        None
+    }
+}
+
+pub fn parse_title(line: &str) -> Option<String> {
     let parts: Vec<&str> = line.split('|').collect();
     if parts.len() < 2 {
         return None;
@@ -150,14 +258,28 @@ pub fn parse_init(line: &str) -> Option<String> {
                 None
             }
         }
-
-        "start" => Some("Battle started".to_string()),
-
         _ => None,
     }
 }
 
-pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String> {
+pub fn parse_start(line: &str) -> Option<String> {
+    let parts: Vec<&str> = line.split('|').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    if parts[1] == "start" {
+        Some("Battle started".to_string())
+    } else {
+        None
+    }
+}
+
+pub fn parse_battle_log(
+    line: &str,
+    user_slot: &Option<String>,
+    team: &[Team; 2],
+) -> Option<String> {
     let parts: Vec<&str> = line.split('|').collect();
     if parts.len() < 2 {
         return None;
@@ -176,17 +298,33 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String
         // TODO: First switch implementation, mixed up of normal switch and drag
         "switch" | "drag" => {
             if parts.len() >= 4 {
-                let pokemon_id = parts[2]; // e.g., "p1a: Aurorus"
+                let pokemon_id = parts[2]; // e.g., "p1a: Aurorus" or "p1a: BigFist"
                 let details = parts[3]; // e.g., "Aurorus, L86, F"
                 let hp = parts.get(4).unwrap_or(&"100/100");
 
-                // Extract just the Pokémon name
-                let pokemon_name = details.split(',').next().unwrap_or(details);
+                // Extract just the Pokémon name (species)
+                let pokemon_name = details.split(',').next().unwrap_or(details).trim();
 
-                Some(format!(
-                    "{} switched to {} ({})",
-                    pokemon_id, pokemon_name, hp
-                ))
+                // Extract nickname (after colon and space, or just species if no nickname)
+                let nickname = if let Some(idx) = pokemon_id.find(':') {
+                    pokemon_id[idx + 1..].trim()
+                } else {
+                    pokemon_id.trim()
+                };
+
+                if nickname == pokemon_name {
+                    // No nickname, or nickname is same as species
+                    Some(format!(
+                        "{} switched in {} ({})",
+                        pokemon_id, pokemon_name, hp
+                    ))
+                } else {
+                    // Nickname is different from species
+                    Some(format!(
+                        "{} switched to {} ({})",
+                        nickname, pokemon_name, hp
+                    ))
+                }
             } else {
                 None
             }
@@ -214,7 +352,14 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String
                 let hp = parts[3];
                 let cause = parts
                     .get(4)
-                    .map(|s| format!(" (from {})", s))
+                    .map(|s| {
+                        let s = s.trim();
+                        if let Some(rest) = s.strip_prefix("[from] ") {
+                            format!(" (from {})", rest)
+                        } else {
+                            format!(" ({})", s)
+                        }
+                    })
                     .unwrap_or_default();
 
                 Some(format!("{} HP: {}{}", pokemon, hp, cause))
@@ -404,5 +549,5 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>) -> Option<String
     };
 
     // Apply player ID replacement
-    result.map(|s| replace_player_ids(&s, user_slot))
+    result.map(|s| replace_player_ids(&s, user_slot, team))
 }
