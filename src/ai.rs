@@ -2,19 +2,15 @@ use anyhow::Result;
 use rig::agent::Agent;
 use rig::client::CompletionClient;
 use rig::providers::openai;
-use rig::providers::openai::Message;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
+use rig::providers::openai::Message;
 
-#[allow(unused)]
 pub enum ModelType {
     Local,
     Cloud,
 }
 
-#[allow(unused)]
 pub struct BattleAgent {
-    user: String,
-    opponent: String,
     model: String,
     model_type: ModelType,
     agent: Option<Agent<ResponsesCompletionModel>>,
@@ -24,8 +20,6 @@ pub struct BattleAgent {
 impl BattleAgent {
     pub fn _new(user: &str, opponent: &str, model: &str, model_type: ModelType) -> Self {
         BattleAgent {
-            user: user.to_string(),
-            opponent: opponent.to_string(),
             model: model.to_string(),
             model_type,
             agent: None,
@@ -37,15 +31,20 @@ impl BattleAgent {
         let agent = match self.model_type {
             ModelType::Cloud => {
                 let client: openai::Client = openai::Client::builder()
-                    .base_url("https://openrouter/api/v1")
+                    .base_url("https://openrouter.ai/api/v1")
                     .api_key(api_key)
                     .build()?;
 
                 client
-                    .agent(self.model.clone())
-                    .preamble("")
-                    .context("")
-                    .temperature(0.9)
+                    .agent(&self.model)
+                    .preamble(
+                        "You are an expert Pokémon Showdown competitive battle analyst. \
+                        Your job is to recommend the optimal move or switch based on the current battle state. \
+                        Consider: type matchups, stat changes, HP percentages, hazards, abilities, \
+                        momentum, and win conditions. Provide clear reasoning for your recommendations, \
+                        You will assist the player label as [Assist] and play against player label as [Against].",
+                    )
+                    .temperature(0.7)
                     .build()
             }
             ModelType::Local => {
@@ -55,10 +54,15 @@ impl BattleAgent {
                     .build()?;
 
                 client
-                    .agent(self.model.clone())
-                    .preamble("")
-                    .context("")
-                    .temperature(0.8)
+                    .agent(&self.model)
+                    .preamble(
+                        "You are an expert Pokémon Showdown competitive battle analyst. \
+                        Your job is to recommend the optimal move or switch based on the current battle state. \
+                        Consider: type matchups, stat changes, HP percentages, hazards, abilities, \
+                        momentum, and win conditions. Provide clear reasoning for your recommendations, \
+                        You will assist the player label as [Assist] and play against player label as [Against].",
+                    )
+                    .temperature(0.7)
                     .build()
             }
         };
