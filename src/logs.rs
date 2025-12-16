@@ -33,6 +33,36 @@ impl BattleEvents {
         }
     }
 
+    /// Main entry point for adding battle events - routes to setup or turns based on battle state
+    pub fn add_event(&mut self, event: &str) {
+        if !self.battle_started {
+            self.add_setup(event);
+        } else {
+            self.add_turns(event);
+        }
+    }
+
+    /// Returns the current turn number (0 if not started)
+    pub fn get_current_turn(&self) -> usize {
+        // Scan the last event buffer for a turn marker
+        // Each turn is a Vec<String> in self.events, and the first line is usually the turn marker
+        // Example: "|turn|5"
+        for turn_events in self.events.iter().rev() {
+            for line in turn_events {
+                if let Some(turn_num) = parse_turn_marker(line) {
+                    return turn_num;
+                }
+            }
+        }
+        // Also check the current event_buffer (for the current turn in progress)
+        for line in self.event_buffer.iter().rev() {
+            if let Some(turn_num) = parse_turn_marker(line) {
+                return turn_num;
+            }
+        }
+        0
+    }
+
     fn add_setup(&mut self, event: &str) {
         if let Some(title) = parse_title(event) {
             if !self.init.is_empty() {
@@ -145,54 +175,25 @@ impl BattleEvents {
             }
         }
     }
+}
 
-    /// Returns the current turn number (0 if not started)
-    pub fn get_current_turn(&self) -> usize {
-        // Scan the last event buffer for a turn marker
-        // Each turn is a Vec<String> in self.events, and the first line is usually the turn marker
-        // Example: "|turn|5"
-        for turn_events in self.events.iter().rev() {
-            for line in turn_events {
-                if let Some(turn_num) = Self::parse_turn_marker(line) {
-                    return turn_num;
-                }
-            }
-        }
-        // Also check the current event_buffer (for the current turn in progress)
-        for line in self.event_buffer.iter().rev() {
-            if let Some(turn_num) = Self::parse_turn_marker(line) {
-                return turn_num;
-            }
-        }
-        0
-    }
-
-    fn parse_turn_marker(line: &str) -> Option<usize> {
-        // Handle raw format: "|turn|1"
-        if line.starts_with("|turn|") {
-            let parts: Vec<&str> = line.split('|').collect();
-            if parts.len() >= 3 {
-                return parts[2].parse::<usize>().ok();
-            }
-        }
-        // Handle parsed format: " TURN 1 "
-        if line.trim().starts_with("TURN") {
-            let parts: Vec<&str> = line.trim().split_whitespace().collect();
-            if parts.len() >= 2 {
-                return parts[1].parse::<usize>().ok();
-            }
-        }
-        None
-    }
-
-    /// Main entry point for adding battle events - routes to setup or turns based on battle state
-    pub fn add_event(&mut self, event: &str) {
-        if !self.battle_started {
-            self.add_setup(event);
-        } else {
-            self.add_turns(event);
+/// Parse turn marker from a line, return turn number if found
+fn parse_turn_marker(line: &str) -> Option<usize> {
+    // Handle raw format: "|turn|1"
+    if line.starts_with("|turn|") {
+        let parts: Vec<&str> = line.split('|').collect();
+        if parts.len() >= 3 {
+            return parts[2].parse::<usize>().ok();
         }
     }
+    // Handle parsed format: " TURN 1 "
+    if line.trim().starts_with("TURN") {
+        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        if parts.len() >= 2 {
+            return parts[1].parse::<usize>().ok();
+        }
+    }
+    None
 }
 
 /// Replace p1/p2 player IDs with [Assist]/[Against] labels with usernames
