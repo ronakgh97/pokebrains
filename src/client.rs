@@ -14,6 +14,7 @@ pub struct BattleClient {
     is_connected: bool,
     pub event_logs: BattleEvents,
     pub ai_agent: Option<BattleAgent>,
+    last_turn: usize, // Track the last processed turn
 }
 
 impl BattleClient {
@@ -25,6 +26,7 @@ impl BattleClient {
             is_connected: false,
             event_logs: BattleEvents::new(user),
             ai_agent: None,
+            last_turn: 0, // Initialize last_turn
         }
     }
 
@@ -94,12 +96,42 @@ impl BattleClient {
                 if line.starts_with('|') {
                     //self.parse_log(line);
                     self.event_logs.add_event(line);
-                    println!();
-                    println!("Event count: {:?}", &self.event_logs.events.len());
-                    println!("Event team: {:?}", &self.event_logs.team);
-                    println!("Event init: {:?}", &self.event_logs.init);
-                    for (i, event) in self.event_logs.events.clone().into_iter().enumerate() {
-                        println!("Index: {:?}\n Event: {:?}", i, event);
+
+                    // AI Integration
+                    if let Some(agent) = &mut self.ai_agent {
+                        // Detect transition: battle just started
+                        if self.event_logs.is_previewing_team
+                            && !self.event_logs.battle_started
+                            && !self.event_logs.is_init_suggestions_generated
+                            && self.event_logs.team[0].player.len() > 0
+                            && self.event_logs.team[1].player.len() > 0
+                            && self.event_logs.team[0].pokemon.len() == 6
+                            && self.event_logs.team[1].pokemon.len() == 6
+                        {
+                            println!("{}", "Generating initial strategy...".cyan());
+                            let suggestion =
+                                agent.get_initial_suggestions(self.event_logs.clone()).await;
+                            self.event_logs.is_init_suggestions_generated = true;
+                            println!("\n{}\n{}\n", "[AI SUGGESTION]".green().bold(), suggestion);
+                        }
+                        // Battle is ongoing and we have new turn data
+                        let current_turn = self.event_logs.get_current_turn();
+
+                        // Debug logging
+                        if line.contains("|turn|") {
+                            //println!(
+                            //    "[DEBUG] Turn event detected! Current turn: {}, Last turn: {}, Battle started: {}",
+                            //    current_turn, self.last_turn, self.event_logs.battle_started
+                            //);
+                        }
+
+                        if self.event_logs.battle_started && current_turn > self.last_turn {
+                            println!("{}", "Generating turn suggestion...".cyan());
+                            let suggestion =
+                                agent.get_turn_suggestions(self.event_logs.clone()).await;
+                            println!("\n{}\n{}\n", "[AI SUGGESTION]".green().bold(), suggestion);
+                            self.last_turn = current_turn;
+                        }
                     }
                 } else {
                     println!("{}", format!("[RAW] {}", line).dimmed());

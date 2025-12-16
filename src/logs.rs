@@ -7,9 +7,11 @@ pub struct BattleEvents {
     pub event_buffer: Vec<String>,
     pub events: Vec<Vec<String>>,
     pub battle_started: bool,
+    pub is_previewing_team: bool,
+    pub is_init_suggestions_generated: bool,
 }
 
-/// This only useful in team battles (currently not implemented)
+/// This only useful in team battles
 #[derive(Clone, Debug, Default)]
 pub struct Team {
     pub player: String,
@@ -19,13 +21,15 @@ pub struct Team {
 impl BattleEvents {
     pub fn new(user: String) -> Self {
         BattleEvents {
-            team: [Team::default(), Team::default()], //<- Unused
+            team: [Team::default(), Team::default()],
             init: String::new(),
             assist: user,
             user_slot: None,
             event_buffer: Vec::new(),
             events: Vec::new(),
             battle_started: false,
+            is_previewing_team: false,
+            is_init_suggestions_generated: false,
         }
     }
 
@@ -79,14 +83,17 @@ impl BattleEvents {
 
             self.init.push_str(&start_msg);
 
-            // Add user context when battle starts
-            if !self.battle_started {
+            self.battle_started = true;
+        }
+
+        if let Some(previewing) = parse_is_team_previewing(event) {
+            self.is_previewing_team = previewing;
+            if previewing {
                 self.init.push('\n');
                 self.init
                     .push_str(&format!("You are assisting: {}", self.assist));
             }
-
-            self.battle_started = true;
+            return;
         }
     }
 
@@ -137,6 +144,45 @@ impl BattleEvents {
                 self.user_slot = Some(player_slot.to_string());
             }
         }
+    }
+
+    /// Returns the current turn number (0 if not started)
+    pub fn get_current_turn(&self) -> usize {
+        // Scan the last event buffer for a turn marker
+        // Each turn is a Vec<String> in self.events, and the first line is usually the turn marker
+        // Example: "|turn|5"
+        for turn_events in self.events.iter().rev() {
+            for line in turn_events {
+                if let Some(turn_num) = Self::parse_turn_marker(line) {
+                    return turn_num;
+                }
+            }
+        }
+        // Also check the current event_buffer (for the current turn in progress)
+        for line in self.event_buffer.iter().rev() {
+            if let Some(turn_num) = Self::parse_turn_marker(line) {
+                return turn_num;
+            }
+        }
+        0
+    }
+
+    fn parse_turn_marker(line: &str) -> Option<usize> {
+        // Handle raw format: "|turn|1"
+        if line.starts_with("|turn|") {
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() >= 3 {
+                return parts[2].parse::<usize>().ok();
+            }
+        }
+        // Handle parsed format: " TURN 1 "
+        if line.trim().starts_with("TURN") {
+            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+            if parts.len() >= 2 {
+                return parts[1].parse::<usize>().ok();
+            }
+        }
+        None
     }
 
     /// Main entry point for adding battle events - routes to setup or turns based on battle state
@@ -270,6 +316,19 @@ pub fn parse_start(line: &str) -> Option<String> {
 
     if parts[1] == "start" {
         Some("Battle started".to_string())
+    } else {
+        None
+    }
+}
+
+pub fn parse_is_team_previewing(line: &str) -> Option<bool> {
+    let parts: Vec<&str> = line.split('|').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    if parts[1] == "teampreview" {
+        Some(true)
     } else {
         None
     }
