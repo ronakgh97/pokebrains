@@ -14,8 +14,8 @@ async fn main() -> Result<()> {
 
     let image = match showdown_window {
         Some(window) => {
-            let img = window.capture_image()?;
-            img
+            
+            window.capture_image()?
         }
         None => {
             panic!("Could not find Pokémon Showdown window");

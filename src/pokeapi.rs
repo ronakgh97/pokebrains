@@ -74,18 +74,17 @@ pub async fn fetch_pokemon_info(pokemon_name: &str) -> Result<PokemonInfo> {
                 ability_slot.ability.name
             );
             let response_ability = reqwest::get(&ability_url).await;
-            if let Ok(resp) = response_ability {
-                if resp.status().is_success() {
-                    if let Ok(ability_details) = resp.json::<AbilityDetails>().await {
-                        // Find the English effect entry
-                        if let Some(entry) = ability_details
-                            .effect_entries
-                            .iter()
-                            .find(|e| e.language.name == "en")
-                        {
-                            ability_slot.effect = Some(entry.short_effect.clone());
-                        }
-                    }
+            if let Ok(resp) = response_ability
+                && resp.status().is_success()
+                && let Ok(ability_details) = resp.json::<AbilityDetails>().await
+            {
+                // Find the English effect entry
+                if let Some(entry) = ability_details
+                    .effect_entries
+                    .iter()
+                    .find(|e| e.language.name == "en")
+                {
+                    ability_slot.effect = Some(entry.short_effect.clone());
                 }
             }
         }

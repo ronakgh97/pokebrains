@@ -123,7 +123,6 @@ impl BattleEvents {
                 self.init
                     .push_str(&format!("You are assisting: {}", self.assist));
             }
-            return;
         }
     }
 
@@ -188,7 +187,7 @@ fn parse_turn_marker(line: &str) -> Option<usize> {
     }
     // Handle parsed format: " TURN 1 "
     if line.trim().starts_with("TURN") {
-        let parts: Vec<&str> = line.trim().split_whitespace().collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 2 {
             return parts[1].parse::<usize>().ok();
         }
@@ -507,7 +506,7 @@ pub fn parse_battle_log(
         "-sidestart" => {
             if parts.len() >= 4 {
                 let side = parts[2].split(':').next().unwrap_or(parts[2]);
-                let condition = parts[3].split(':').last().unwrap_or(parts[3]);
+                let condition = parts[3].split(':').next_back().unwrap_or(parts[3]);
                 Some(format!("{} set up {}", side, condition.trim()))
             } else {
                 None
@@ -517,7 +516,7 @@ pub fn parse_battle_log(
         "-sideend" => {
             if parts.len() >= 4 {
                 let side = parts[2].split(':').next().unwrap_or(parts[2]);
-                let condition = parts[3].split(':').last().unwrap_or(parts[3]);
+                let condition = parts[3].split(':').next_back().unwrap_or(parts[3]);
                 Some(format!("{}'s {} wore off", side, condition.trim()))
             } else {
                 None
@@ -588,7 +587,7 @@ pub fn parse_battle_log(
 
         "-message" => {
             if parts.len() >= 3 {
-                Some(format!("{}", parts[2]))
+                Some(parts[2].to_string())
             } else {
                 None
             }

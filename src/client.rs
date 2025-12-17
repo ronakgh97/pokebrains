@@ -104,8 +104,8 @@ impl BattleClient {
                         if self.event_logs.is_previewing_team
                             && !self.event_logs.battle_started
                             && !self.event_logs.is_init_suggestions_generated
-                            && self.event_logs.team[0].player.len() > 0
-                            && self.event_logs.team[1].player.len() > 0
+                            && !self.event_logs.team[0].player.is_empty()
+                            && !self.event_logs.team[1].player.is_empty()
                             && self.event_logs.team[0].pokemon.len() == 6
                             && self.event_logs.team[1].pokemon.len() == 6
                         {
