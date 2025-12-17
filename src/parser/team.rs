@@ -140,7 +140,7 @@ impl Team {
             }
 
             // Display EVs
-            let ev_parts: Vec<String> = vec![
+            let ev_parts: Vec<String> = [
                 (pkmn.evs.hp, "HP"),
                 (pkmn.evs.atk, "Atk"),
                 (pkmn.evs.def, "Def"),
@@ -211,17 +211,17 @@ impl Team {
             let part = part.trim();
             let tokens: Vec<&str> = part.split_whitespace().collect();
 
-            if tokens.len() >= 2 {
-                if let Ok(value) = tokens[0].parse::<u16>() {
-                    match tokens[1] {
-                        "HP" => evs.hp = value,
-                        "Atk" => evs.atk = value,
-                        "Def" => evs.def = value,
-                        "SpA" => evs.spa = value,
-                        "SpD" => evs.spd = value,
-                        "Spe" => evs.spe = value,
-                        _ => {}
-                    }
+            if tokens.len() >= 2
+                && let Ok(value) = tokens[0].parse::<u16>()
+            {
+                match tokens[1] {
+                    "HP" => evs.hp = value,
+                    "Atk" => evs.atk = value,
+                    "Def" => evs.def = value,
+                    "SpA" => evs.spa = value,
+                    "SpD" => evs.spd = value,
+                    "Spe" => evs.spe = value,
+                    _ => {}
                 }
             }
         }
