@@ -1,5 +1,5 @@
 use crate::ai::BattleAgent;
-use crate::logs::BattleEvents;
+use crate::parser::logs::BattleEvents;
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;

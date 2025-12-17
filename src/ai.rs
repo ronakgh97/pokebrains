@@ -1,4 +1,4 @@
-use crate::logs::BattleEvents;
+use crate::parser::logs::BattleEvents;
 use anyhow::Result;
 #[allow(unused)]
 use colored::Colorize;
@@ -9,7 +9,7 @@ use rig::providers::openai;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
 static SYSTEM_PROMPT: &str = "\
-You are a Pokemon Showdown Gen 6 OU battle analyst.\n\
+You are a Pokemon Showdown battle analyst.\n\
 \n\
 RULES:\n\
 - You assist the player labeled [Assist]\n\
