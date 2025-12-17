@@ -8,4 +8,4 @@ pub use anyhow::Result;
 pub use client::BattleClient;
 pub use colored::Colorize;
 pub use parser::team::Team;
-pub use pokeapi::fetch_pokemon_info;
+pub use pokeapi::{display, fetch_pokemon_info};
