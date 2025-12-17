@@ -49,9 +49,18 @@ async fn main() -> Result<()> {
                 let hidden_text = if ability.is_hidden {
                     "(Hidden)".red().italic()
                 } else {
-                    "".normal()
+                    "        ".normal()
                 };
-                println!("  {:>15} {}", ability.ability.name.white(), hidden_text);
+                if let Some(effect) = &ability.effect {
+                    println!(
+                        " {:>15} {} - {}",
+                        ability.ability.name.white(),
+                        hidden_text,
+                        effect.bright_blue()
+                    );
+                } else {
+                    println!("  {:>15} {}", ability.ability.name.white(), hidden_text);
+                }
             }
 
             println!();

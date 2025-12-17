@@ -100,6 +100,7 @@ impl BattleClient {
                     // AI Integration
                     if let Some(agent) = &mut self.ai_agent {
                         // Detect transition: battle just started
+                        //TODO: Holy!! Refactor this mess
                         if self.event_logs.is_previewing_team
                             && !self.event_logs.battle_started
                             && !self.event_logs.is_init_suggestions_generated

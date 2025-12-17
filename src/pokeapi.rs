@@ -22,6 +22,23 @@ pub struct PokemonTypeSlot {
 pub struct PokemonAbilitySlot {
     pub is_hidden: bool,
     pub ability: NamedAPIResource,
+    #[serde(skip)]
+    pub effect: Option<String>, // Added to store fetched effect
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AbilityDetails {
+    #[allow(dead_code)]
+    name: String,
+    pub effect_entries: Vec<AbilityEffectEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AbilityEffectEntry {
+    #[allow(dead_code)]
+    effect: String,
+    pub short_effect: String,
+    pub language: NamedAPIResource,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,7 +65,30 @@ pub async fn fetch_pokemon_info(pokemon_name: &str) -> Result<PokemonInfo> {
     let response = reqwest::get(&url).await?;
 
     if response.status().is_success() {
-        let pokemon: PokemonInfo = response.json().await?;
+        let mut pokemon: PokemonInfo = response.json().await?;
+
+        // Fetch ability details for each ability
+        for ability_slot in &mut pokemon.abilities {
+            let ability_url = format!(
+                "https://pokeapi.co/api/v2/ability/{}",
+                ability_slot.ability.name
+            );
+            let response_ability = reqwest::get(&ability_url).await;
+            if let Ok(resp) = response_ability {
+                if resp.status().is_success() {
+                    if let Ok(ability_details) = resp.json::<AbilityDetails>().await {
+                        // Find the English effect entry
+                        if let Some(entry) = ability_details
+                            .effect_entries
+                            .iter()
+                            .find(|e| e.language.name == "en")
+                        {
+                            ability_slot.effect = Some(entry.short_effect.clone());
+                        }
+                    }
+                }
+            }
+        }
         Ok(pokemon)
     } else {
         Err(anyhow::anyhow!(
