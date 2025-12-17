@@ -1,10 +1,26 @@
 use crate::logs::BattleEvents;
 use anyhow::Result;
+#[allow(unused)]
+use colored::Colorize;
 use rig::agent::Agent;
 use rig::client::CompletionClient;
-use rig::completion::Prompt;
+use rig::completion::{Chat, Message};
 use rig::providers::openai;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
+
+static SYSTEM_PROMPT: &str = "\
+You are a Pokemon Showdown Gen 6 OU battle analyst.\n\
+\n\
+RULES:\n\
+- You assist the player labeled [Assist]\n\
+- You play against the player labeled [Against]\n\
+- Give ONE concrete action only\n\
+- Keep reasoning under 2 sentences\n\
+- No speculation or uncertainty\n\
+\n\
+OUTPUT FORMAT:\n\
+Action: [specific move/switch]\n\
+Reason: [why in 1-2 sentences]";
 
 pub enum ModelType {
     Local,
@@ -16,7 +32,7 @@ pub struct BattleAgent {
     model_type: ModelType,
     #[allow(unused)]
     agent: Option<Agent<ResponsesCompletionModel>>,
-    history: Vec<String>,
+    history: Vec<Message>,
 }
 
 impl BattleAgent {
@@ -39,15 +55,8 @@ impl BattleAgent {
 
                 client
                     .agent(&self.model)
-                    .preamble(
-                        "You are an expert Pokémon Showdown competitive battle analyst. \
-                        Your job is to recommend the optimal move or switch based on the current battle state. \
-                        Consider: type matchups, stat changes, HP percentages, hazards, abilities, \
-                        momentum, and win conditions. Provide clear, concise and short reasoning for your recommendations, \
-                        You will assist the player label as [Assist] and play against player label as [Against], \
-                        Your responses should be very brief and to the point, and should include only two parts: Suggestion and Reasoning.",
-                    )
-                    .temperature(0.7)
+                    .preamble(SYSTEM_PROMPT)
+                    .temperature(0.4)
                     .build()
             }
             ModelType::Local => {
@@ -58,15 +67,8 @@ impl BattleAgent {
 
                 client
                     .agent(&self.model)
-                    .preamble(
-                        "You are an expert Pokémon Showdown competitive battle analyst. \
-                        Your job is to recommend the optimal move or switch based on the current battle state. \
-                        Consider: type matchups, stat changes, HP percentages, hazards, abilities, \
-                        momentum, and win conditions. Provide clear reasoning for your recommendations, \
-                        You will assist the player label as [Assist] and play against player label as [Against].\
-                        Your responses should be very brief and to the point, and should include only two parts: Suggestion and Reasoning.",
-                    )
-                    .temperature(0.7)
+                    .preamble(SYSTEM_PROMPT)
+                    .temperature(0.4)
                     .build()
             }
         };
@@ -90,33 +92,15 @@ impl BattleAgent {
         prompt.push_str(&team_match_up);
         prompt.push('\n');
 
-        let question =
-            "Based on the initial teams, what strategy should I consider for this battle?";
+        let question = "Question: Which Pokemon should [Assist: {}] lead with and why?";
         prompt.push_str(question);
         prompt.push('\n');
 
-        //DEBUG
-        println!("Initial Prompt Sent to Agent:\n{}", prompt);
-
-        if let Some(agent) = &self.agent {
-            match agent.prompt(&prompt.clone()).await {
-                Ok(response) => {
-                    self.history.push(prompt.clone());
-                    self.history.push(response.clone());
-                    response.clone()
-                }
-                Err(e) => format!("Error generating suggestions: {}", e),
-            }
-        } else {
-            "Agent not initialized.".to_string()
-        }
+        self.call_ai_api(prompt).await
     }
 
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
         let mut prompt = String::new();
-
-        // Add the history of previous turns
-        prompt.push_str(&self.history.join("\n"));
 
         // Add turns details
         for turn in &events.events {
@@ -128,14 +112,19 @@ impl BattleAgent {
         prompt.push_str(question);
         prompt.push('\n');
 
+        self.call_ai_api(prompt).await
+    }
+
+    async fn call_ai_api(&mut self, prompt: String) -> String {
         //DEBUG
-        println!("Initial Prompt Sent to Agent:\n{}", prompt);
+        println!();
+        //println!("[DEBUG] Prompt Sent to Agent:\n{}", prompt.dimmed());
 
         if let Some(agent) = &self.agent {
-            match agent.prompt(&prompt.clone()).await {
+            match agent.chat(&prompt.clone(), self.history.clone()).await {
                 Ok(response) => {
-                    self.history.push(prompt.clone());
-                    self.history.push(response.clone());
+                    self.history.push(Message::user(prompt.clone()));
+                    self.history.push(Message::assistant(response.clone()));
                     response.clone()
                 }
                 Err(e) => format!("Error generating suggestions: {}", e),
