@@ -404,6 +404,25 @@ pub fn parse_battle_log(
             }
         }
 
+        // Add Mega Evolution parsing
+        "-mega" => {
+            if parts.len() >= 5 {
+                let pokemon = parts[2];
+                let mega_form = parts[3];
+                let move_name = parts[4];
+                Some(format!(
+                    "{} Mega Evolved into {} using {}",
+                    pokemon, mega_form, move_name
+                ))
+            } else if parts.len() >= 4 {
+                let pokemon = parts[2];
+                let mega_form = parts[3];
+                Some(format!("{} Mega Evolved into {}", pokemon, mega_form))
+            } else {
+                None
+            }
+        }
+
         "-damage" => {
             if parts.len() >= 4 {
                 let pokemon = parts[2];
