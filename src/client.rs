@@ -129,7 +129,6 @@ impl BattleClient {
 
                         if self.event_logs.battle_started && current_turn > self.last_turn {
                             println!("{}", "Generating turn suggestion...".cyan().bold());
-                            println!();
                             let suggestion =
                                 agent.get_turn_suggestions(self.event_logs.clone()).await;
                             println!("\n{}\n{}\n", "[AI SUGGESTION]".green().bold(), suggestion);

@@ -30,7 +30,6 @@ pub enum ModelType {
 pub struct BattleAgent {
     model: String,
     model_type: ModelType,
-    #[allow(unused)]
     agent: Option<Agent<ResponsesCompletionModel>>,
     history: Vec<Message>,
 }
@@ -56,7 +55,8 @@ impl BattleAgent {
                 client
                     .agent(&self.model)
                     .preamble(SYSTEM_PROMPT)
-                    .temperature(0.4)
+                    .temperature(0.3)
+                    .max_tokens(256)
                     .build()
             }
             ModelType::Local => {
@@ -68,7 +68,8 @@ impl BattleAgent {
                 client
                     .agent(&self.model)
                     .preamble(SYSTEM_PROMPT)
-                    .temperature(0.4)
+                    .temperature(0.3)
+                    .max_tokens(256)
                     .build()
             }
         };
@@ -92,7 +93,7 @@ impl BattleAgent {
         prompt.push_str(&team_match_up);
         prompt.push('\n');
 
-        let question = "Question: Which Pokemon should [Assist: {}] lead with and why?";
+        let question = "Which Pokemon should lead with and why?";
         prompt.push_str(question);
         prompt.push('\n');
 
@@ -118,7 +119,7 @@ impl BattleAgent {
     async fn call_ai_api(&mut self, prompt: String) -> String {
         //DEBUG
         println!();
-        //println!("[DEBUG] Prompt Sent to Agent:\n{}", prompt.dimmed());
+        println!("[DEBUG] Prompt Sent to Agent:\n{}", prompt.dimmed());
 
         if let Some(agent) = &self.agent {
             match agent.chat(&prompt.clone(), self.history.clone()).await {

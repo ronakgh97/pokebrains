@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
 
     let mut agent = None;
 
-    let battle_agent = BattleAgent::new("qwen/qwen3-vl-8b", ModelType::Local);
+    let battle_agent = BattleAgent::new("ibm/granite-3.2-8b", ModelType::Local);
     match battle_agent.build_agent("local") {
         Ok(a) => {
             println!("{}", "AI Agent initialized successfully!".green());
