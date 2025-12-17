@@ -109,7 +109,8 @@ impl BattleClient {
                             && self.event_logs.team[0].pokemon.len() == 6
                             && self.event_logs.team[1].pokemon.len() == 6
                         {
-                            println!("{}", "Generating initial strategy...".cyan());
+                            println!();
+                            println!("{}", "Generating initial strategy...".cyan().bold());
                             let suggestion =
                                 agent.get_initial_suggestions(self.event_logs.clone()).await;
                             self.event_logs.is_init_suggestions_generated = true;
@@ -127,7 +128,8 @@ impl BattleClient {
                         }
 
                         if self.event_logs.battle_started && current_turn > self.last_turn {
-                            println!("{}", "Generating turn suggestion...".cyan());
+                            println!("{}", "Generating turn suggestion...".cyan().bold());
+                            println!();
                             let suggestion =
                                 agent.get_turn_suggestions(self.event_logs.clone()).await;
                             println!("\n{}\n{}\n", "[AI SUGGESTION]".green().bold(), suggestion);
