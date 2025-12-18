@@ -9,7 +9,7 @@ use rig::providers::openai;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
 static SYSTEM_PROMPT: &str = "\
-You are a Pokemon Showdown battle analyst.\n\
+You are a Pokemon Showdown battle bot.\n\
 \n\
 RULES:\n\
 - You assist the player labeled [Assist]\n\
@@ -56,7 +56,6 @@ impl BattleAgent {
                     .agent(&self.model)
                     .preamble(SYSTEM_PROMPT)
                     .temperature(0.3)
-                    .max_tokens(256)
                     .build()
             }
             ModelType::Local => {
@@ -69,7 +68,6 @@ impl BattleAgent {
                     .agent(&self.model)
                     .preamble(SYSTEM_PROMPT)
                     .temperature(0.3)
-                    .max_tokens(256)
                     .build()
             }
         };
@@ -80,7 +78,13 @@ impl BattleAgent {
         })
     }
     pub async fn get_initial_suggestions(&mut self, events: BattleEvents) -> String {
-        let mut prompt = events.init;
+        let mut prompt = events
+            .init
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
         prompt.push('\n');
 
         let team_match_up = format!(
@@ -104,11 +108,16 @@ impl BattleAgent {
         let mut prompt = String::new();
 
         // Add turns details
-        for turn in &events.events {
-            prompt.push_str(&turn.join("\n"));
-            prompt.push('\n');
+        if let Some(last_turn) = events.events.last() {
+            let turn_text = last_turn
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            prompt.push_str(&turn_text);
         }
 
+        prompt.push('\n');
         let question = "Based on the current battle state, what is the optimal move or switch?";
         prompt.push_str(question);
         prompt.push('\n');

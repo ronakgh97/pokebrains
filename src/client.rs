@@ -144,6 +144,22 @@ impl BattleClient {
     }
 
     #[allow(dead_code)]
+    fn debug_turn_print(&self, line: &str) {
+        if line.contains("|turn|") {
+            let parts: Vec<&str> = line.splitn(3, '|').collect();
+            if parts.len() >= 3 {
+                let turn_number = parts[2];
+                println!(
+                    "{}",
+                    format!("[DEBUG] Turn detected: {}", turn_number)
+                        .yellow()
+                        .bold()
+                );
+            }
+        }
+    }
+
+    #[allow(dead_code)]
     fn parse_log(&self, line: &str) {
         let parts: Vec<&str> = line.splitn(3, '|').collect();
         if parts.len() < 2 {
