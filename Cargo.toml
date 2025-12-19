@@ -3,6 +3,14 @@ name = "pokebrains"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "pokebrains"
+path = "src/bin/main.rs"
+
+[[bin]]
+name = "pokefetcher"
+path = "src/bin/fetcher.rs"
+
 [lib]
 name = "pokebrains"
 path = "src/lib.rs"
@@ -16,4 +24,4 @@ futures-util = "0.3"
 colored = "3.0.0"
 anyhow = "1.0.100"
 rig-core = "0.27.0"
-xcap = "0.7.1"
+xcap = "0.8.0"
