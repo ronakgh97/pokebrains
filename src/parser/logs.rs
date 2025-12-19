@@ -28,7 +28,7 @@ pub enum Token {
     START(bool),
     TURN(usize),
     MOVE(String, String, String, Option<String>), // (slot, Pokémon, move_name, target)
-    SWITCH(String, String, String, String),       // (slot, nickname, species, hp)
+    SWITCH(String, String, String),               // (slot, nickname, species, hp)
     DAMAGE(String, String, String, Option<String>), // (slot, Pokémon, hp, cause)
     FAINT(String),
     STATUS(String, String),
@@ -169,7 +169,7 @@ impl BattleEvents {
                 self.events.push(self.event_buffer.clone());
                 self.event_buffer.clear();
             }
-            // Add turn marker to new buffer
+            // Parse and add turn marker to new buffer (this also triggers saving the previous turn)
             if let Some(parsed) = parse_battle_log(event, &self.user_slot, &self.team) {
                 self.event_buffer.push(parsed);
             }
@@ -230,18 +230,20 @@ fn replace_player_ids_in_token(
     match token {
         Token::MOVE(s, pokemon, move_name, target) => {
             let new_slot = replace_slot(&s, you_prefix, opp_prefix, your_name, opp_name);
-            Token::MOVE(new_slot, pokemon, move_name, target)
+            let new_target =
+                target.map(|t| replace_pokemon_id(&t, you_prefix, opp_prefix, your_name, opp_name));
+            Token::MOVE(new_slot, pokemon, move_name, new_target)
         }
-        Token::SWITCH(s, nickname, species, hp) => {
+        Token::SWITCH(s, species, hp) => {
             let new_slot = replace_slot(&s, you_prefix, opp_prefix, your_name, opp_name);
-            Token::SWITCH(new_slot, nickname, species, hp)
+            Token::SWITCH(new_slot, species, hp)
         }
         Token::DAMAGE(s, pokemon, hp, cause) => {
             let new_slot = replace_slot(&s, you_prefix, opp_prefix, your_name, opp_name);
             Token::DAMAGE(new_slot, pokemon, hp, cause)
         }
         Token::HEAL(pokemon, hp, source) => {
-            // HEAL also contains pokemon ID that needs replacing
+            // HEAL also contains Pokémon ID that needs replacing
             let new_pokemon =
                 replace_pokemon_id(&pokemon, you_prefix, opp_prefix, your_name, opp_name);
             Token::HEAL(new_pokemon, hp, source)
@@ -474,26 +476,12 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>, team: &[Team; 2]
                     .trim()
                     .to_string();
 
-                // Extract nickname (after colon and space, or just species if no nickname)
-                let nickname = if let Some(idx) = pokemon_id.find(':') {
-                    pokemon_id[idx + 1..].trim().to_string()
-                } else {
-                    pokemon_id.trim().to_string()
-                };
-
                 let slot = pokemon_id
                     .split(':')
                     .next()
                     .unwrap_or(pokemon_id)
                     .to_string();
-
-                if nickname == pokemon_name {
-                    // No nickname, or nickname is same as species
-                    Some(Token::SWITCH(slot, nickname, pokemon_name, hp))
-                } else {
-                    // Nickname is different from species
-                    Some(Token::SWITCH(slot, nickname, pokemon_name, hp))
-                }
+                Some(Token::SWITCH(slot, pokemon_name, hp))
             } else {
                 None
             }
@@ -564,7 +552,6 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>, team: &[Team; 2]
         }
 
         "faint" if parts.len() >= 3 => Some(Token::FAINT(parts[2].to_string())),
-
         "-status" if parts.len() >= 4 => {
             Some(Token::STATUS(parts[2].to_string(), parts[3].to_string()))
         }
@@ -573,7 +560,6 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>, team: &[Team; 2]
             parts[2].to_string(),
             parts[3].to_string(),
         )),
-
         "-boost" if parts.len() >= 4 => {
             let amount = parts.get(4).unwrap_or(&"1").to_string();
             Some(Token::BOOST(
@@ -593,30 +579,23 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>, team: &[Team; 2]
         }
 
         "-crit" if parts.len() >= 3 => Some(Token::CRIT(parts[2].to_string())),
-
         "-supereffective" if parts.len() >= 3 => Some(Token::SUPEREFFECTIVE(parts[2].to_string())),
-
         "-resisted" if parts.len() >= 3 => Some(Token::RESISTED(parts[2].to_string())),
-
         "-immune" if parts.len() >= 3 => Some(Token::IMMUNE(parts[2].to_string())),
-
         "cant" if parts.len() >= 4 => Some(Token::CANT(parts[2].to_string(), parts[3].to_string())),
-
         "-ability" if parts.len() >= 4 => {
             Some(Token::ABILITY(parts[2].to_string(), parts[3].to_string()))
         }
 
-        "-mega" if parts.len() >= 3 => {
+        "detailschange" if parts.len() >= 3 => {
             let pokemon = parts[2].to_string();
             let mega_stone = parts[3].to_string();
             Some(Token::MEGA(pokemon, mega_stone, None))
         }
 
         "-weather" if parts.len() >= 3 => Some(Token::WEATHER(parts[2].to_string())),
-
         "win" if parts.len() >= 3 => Some(Token::WIN(parts[2].to_string())),
         "tie" => Some(Token::TIE),
-
         "-message" if parts.len() >= 3 => Some(Token::MESSAGE(parts[2].to_string())),
 
         // Ignore these - not relevant for battle strategy
@@ -656,12 +635,8 @@ impl fmt::Display for Token {
                     write!(f, "{}: {} used {}", slot, pokemon, move_name)
                 }
             }
-            Token::SWITCH(slot, nickname, species, hp) => {
-                if nickname == species {
-                    write!(f, "{}: {} sent out ({}) HP: {}", slot, species, species, hp)
-                } else {
-                    write!(f, "{}: {} sent out {} HP: {}", slot, nickname, species, hp)
-                }
+            Token::SWITCH(slot, species, hp) => {
+                write!(f, "{}: {} sent out ({}) HP: {}", slot, species, species, hp)
             }
             Token::DAMAGE(slot, pokemon, hp, cause) => {
                 if let Some(c) = cause {

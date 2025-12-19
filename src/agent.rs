@@ -2,14 +2,14 @@ use crate::parser::logs::BattleEvents;
 use anyhow::Result;
 #[allow(unused)]
 use colored::Colorize;
-use rig::agent::Agent;
+use rig::agent::{Agent, AgentBuilder};
 use rig::client::CompletionClient;
 use rig::completion::{Chat, Message};
 use rig::providers::openai;
 use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
-static SYSTEM_PROMPT: &str = "\
-You are a Pokemon Showdown battle bot.\n\
+const SYSTEM_PROMPT: &str = "\
+You are a Pokemon Showdown battle Assistant.\n\
 \n\
 RULES:\n\
 - You assist the player labeled [Assist]\n\
@@ -18,7 +18,7 @@ RULES:\n\
 - Keep reasoning under 2 sentences\n\
 - No speculation or uncertainty\n\
 \n\
-OUTPUT FORMAT:\n\
+RESPONSE FORMAT:\n\
 Action: [specific move/switch]\n\
 Reason: [why in 1-2 sentences]";
 
@@ -52,9 +52,10 @@ impl BattleAgent {
                     .api_key(api_key)
                     .build()?;
 
-                client
-                    .agent(&self.model)
-                    .preamble(SYSTEM_PROMPT)
+                let model = client.completion_model(&self.model);
+
+                AgentBuilder::new(model)
+                    .context(SYSTEM_PROMPT)
                     .temperature(0.3)
                     .build()
             }
@@ -64,9 +65,10 @@ impl BattleAgent {
                     .api_key(api_key)
                     .build()?;
 
-                client
-                    .agent(&self.model)
-                    .preamble(SYSTEM_PROMPT)
+                let model = client.completion_model(&self.model);
+
+                AgentBuilder::new(model)
+                    .context(SYSTEM_PROMPT)
                     .temperature(0.3)
                     .build()
             }
@@ -81,6 +83,10 @@ impl BattleAgent {
         let mut prompt = events
             .init
             .iter()
+            .filter(|t| match t {
+                crate::parser::logs::Token::PREVIEW(s) if *s => false,
+                _ => true,
+            })
             .map(|t| t.to_string())
             .collect::<Vec<_>>()
             .join("\n");
@@ -107,17 +113,18 @@ impl BattleAgent {
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
         let mut prompt = String::new();
 
-        // Add turns details
+        // Add the last turn's data
         if let Some(last_turn) = events.events.last() {
             let turn_text = last_turn
                 .iter()
+                .filter(|t| !matches!(t, crate::parser::logs::Token::TURN(_)))
                 .map(|t| t.to_string())
                 .collect::<Vec<_>>()
-                .join("\n");
+                .join("\n\n");
             prompt.push_str(&turn_text);
+            prompt.push('\n');
         }
 
-        prompt.push('\n');
         let question = "Based on the current battle state, what is the optimal move or switch?";
         prompt.push_str(question);
         prompt.push('\n');

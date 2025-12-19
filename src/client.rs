@@ -1,4 +1,4 @@
-use crate::ai::BattleAgent;
+use crate::agent::BattleAgent;
 use crate::parser::logs::BattleEvents;
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
