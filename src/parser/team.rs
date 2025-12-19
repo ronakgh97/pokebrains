@@ -2,31 +2,32 @@ use colored::Colorize;
 
 #[derive(Debug, Default)]
 pub struct EVs {
-    hp: u16,
-    atk: u16,
-    def: u16,
-    spa: u16,
-    spd: u16,
-    spe: u16,
+    pub hp: u16,
+    pub atk: u16,
+    pub def: u16,
+    pub spa: u16,
+    pub spd: u16,
+    pub spe: u16,
 }
 
 #[derive(Debug)]
 pub struct Pokemon {
-    name: String,
-    item: Option<String>,
-    ability: Option<String>,
-    nature: Option<String>,
-    gender: Option<String>,
-    evs: EVs,
-    moves: Vec<String>,
+    pub name: String,
+    pub item: Option<String>,
+    pub ability: Option<String>,
+    pub nature: Option<String>,
+    pub gender: Option<String>,
+    pub evs: EVs,
+    pub moves: Vec<String>,
 }
 
 pub struct Team {
-    pokemon: Vec<Pokemon>,
+    pub pokemon: Vec<Pokemon>,
 }
 
 impl Team {
-    pub fn parse(input: &str) -> Self {
+    /// Deserialize a team from Pokémon Showdown text format
+    pub fn deserialize(input: &str) -> Self {
         let mut pokemon = Vec::new();
         let mut current_pokemon: Option<Pokemon> = None;
 
@@ -109,6 +110,69 @@ impl Team {
         }
 
         Team { pokemon }
+    }
+
+    /// Serialize the team back to Pokemon Showdown text format
+    pub fn serialize(&self) -> String {
+        let mut output = String::new();
+
+        for (idx, pkmn) in self.pokemon.iter().enumerate() {
+            // Add blank line between Pokemon (except before the first one)
+            if idx > 0 {
+                output.push('\n');
+            }
+
+            // First line: Name (Gender) @ Item
+            output.push_str(&pkmn.name);
+            if let Some(ref gender) = pkmn.gender {
+                output.push_str(&format!(" ({})", gender));
+            }
+            if let Some(ref item) = pkmn.item {
+                output.push_str(&format!(" @ {}", item));
+            }
+            output.push('\n');
+
+            // Ability line
+            if let Some(ref ability) = pkmn.ability {
+                output.push_str(&format!("Ability: {}\n", ability));
+            }
+
+            // EVs line (only if any EVs are set)
+            let ev_parts: Vec<String> = [
+                (pkmn.evs.hp, "HP"),
+                (pkmn.evs.atk, "Atk"),
+                (pkmn.evs.def, "Def"),
+                (pkmn.evs.spa, "SpA"),
+                (pkmn.evs.spd, "SpD"),
+                (pkmn.evs.spe, "Spe"),
+            ]
+            .iter()
+            .filter(|(val, _)| *val > 0)
+            .map(|(val, stat)| format!("{} {}", val, stat))
+            .collect();
+
+            if !ev_parts.is_empty() {
+                output.push_str(&format!("EVs: {}\n", ev_parts.join(" / ")));
+            }
+
+            // Nature line
+            if let Some(ref nature) = pkmn.nature {
+                output.push_str(&format!("{} Nature\n", nature));
+            }
+
+            // Move lines
+            for mv in &pkmn.moves {
+                output.push_str(&format!("- {}\n", mv));
+            }
+        }
+
+        output
+    }
+
+    /// Alias for deserialize (backwards compatibility)
+    #[deprecated(note = "Use deserialize() instead")]
+    pub fn parse(input: &str) -> Self {
+        Self::deserialize(input)
     }
 
     pub fn display(&self) {
