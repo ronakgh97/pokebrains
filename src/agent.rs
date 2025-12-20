@@ -1,12 +1,8 @@
+use crate::agents::{Agent, AgentBuilder, prompt};
+use crate::dtos::{Message, Role};
 use crate::parser::logs::BattleEvents;
 use anyhow::Result;
-#[allow(unused)]
 use colored::Colorize;
-use rig::agent::{Agent, AgentBuilder};
-use rig::client::CompletionClient;
-use rig::completion::{Chat, Message};
-use rig::providers::openai;
-use rig::providers::openai::responses_api::ResponsesCompletionModel;
 
 const SYSTEM_PROMPT: &str = "\
 You are a Pokemon Showdown battle Assistant.\n\
@@ -30,7 +26,7 @@ pub enum ModelType {
 pub struct BattleAgent {
     model: String,
     model_type: ModelType,
-    agent: Option<Agent<ResponsesCompletionModel>>,
+    agent: Option<Agent>,
     history: Vec<Message>,
 }
 
@@ -46,32 +42,20 @@ impl BattleAgent {
 
     pub fn build_agent(self, api_key: &str) -> Result<Self> {
         let agent = match self.model_type {
-            ModelType::Cloud => {
-                let client: openai::Client = openai::Client::builder()
-                    .base_url("https://openrouter.ai/api/v1")
-                    .api_key(api_key)
-                    .build()?;
-
-                let model = client.completion_model(&self.model);
-
-                AgentBuilder::new(model)
-                    .context(SYSTEM_PROMPT)
-                    .temperature(0.3)
-                    .build()
-            }
-            ModelType::Local => {
-                let client: openai::Client = openai::Client::builder()
-                    .base_url("http://localhost:1234/v1")
-                    .api_key(api_key)
-                    .build()?;
-
-                let model = client.completion_model(&self.model);
-
-                AgentBuilder::new(model)
-                    .context(SYSTEM_PROMPT)
-                    .temperature(0.3)
-                    .build()
-            }
+            ModelType::Local => AgentBuilder::new()
+                .model(&self.model)
+                .url("http://localhost:1234/v1")
+                .api_key(api_key)
+                .system_prompt(SYSTEM_PROMPT)
+                .temperature(0.4)
+                .build()?,
+            ModelType::Cloud => AgentBuilder::new()
+                .model(&self.model)
+                .url("https://openrouter.ai/api/v1")
+                .api_key(api_key)
+                .system_prompt(SYSTEM_PROMPT)
+                .temperature(0.4)
+                .build()?,
         };
 
         Ok(Self {
@@ -107,7 +91,7 @@ impl BattleAgent {
         prompt.push_str(question);
         prompt.push('\n');
 
-        self.call_ai_api(prompt).await
+        self.generate_response(prompt).await
     }
 
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
@@ -129,19 +113,27 @@ impl BattleAgent {
         prompt.push_str(question);
         prompt.push('\n');
 
-        self.call_ai_api(prompt).await
+        self.generate_response(prompt).await
     }
 
-    async fn call_ai_api(&mut self, prompt: String) -> String {
+    async fn generate_response(&mut self, user_prompt: String) -> String {
         //DEBUG
         println!();
-        println!("[DEBUG] Prompt Sent to Agent:\n{}", prompt.dimmed());
+        println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
+
+        self.history.push(Message {
+            role: Role::USER,
+            content: user_prompt.clone(),
+        });
 
         if let Some(agent) = &self.agent {
-            match agent.chat(&prompt.clone(), self.history.clone()).await {
+            match prompt(agent.clone(), self.history.clone()).await {
                 Ok(response) => {
-                    self.history.push(Message::user(prompt.clone()));
-                    self.history.push(Message::assistant(response.clone()));
+                    self.history.push(Message {
+                        role: Role::ASSISTANT,
+                        content: response.trim().to_string(),
+                    });
+
                     response.trim().to_string().clone()
                 }
                 Err(e) => format!("Error generating suggestions: {}", e),

@@ -11,17 +11,18 @@ pub struct CompletionRequest {
     pub stream: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub role: Role,
     pub content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
-    system,
-    user,
-    assistant,
+    SYSTEM,
+    USER,
+    ASSISTANT,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

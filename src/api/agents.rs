@@ -1,6 +1,6 @@
-use crate::api::dtos::Role::system;
 use crate::api::dtos::{CompletionRequest, Message};
 use crate::api::request::{send_request, send_request_stream};
+use crate::dtos::Role::SYSTEM;
 use anyhow::Result;
 use futures_util::Stream;
 use std::pin::Pin;
@@ -89,13 +89,13 @@ impl AgentBuilder {
     }
 }
 
-pub async fn prompt(agent: Agent, prompt: &str, history: Vec<Message>) -> Result<String> {
+pub async fn prompt(agent: Agent, history: Vec<Message>) -> Result<String> {
     // Add system prompt to the beginning of history for non-repetitive context
     let mut history = history;
     history.insert(
         0,
         Message {
-            role: system,
+            role: SYSTEM,
             content: agent.system_prompt,
         },
     );
@@ -114,9 +114,6 @@ pub async fn prompt(agent: Agent, prompt: &str, history: Vec<Message>) -> Result
         stream: Some(false),
     };
 
-    // Debug: print the request payload to verify system prompt is included
-    println!("Request payload: {:?}", request);
-
     let response = send_request(agent.url.clone(), agent.api_key.clone(), request).await?;
 
     Ok(response)
@@ -124,7 +121,6 @@ pub async fn prompt(agent: Agent, prompt: &str, history: Vec<Message>) -> Result
 
 pub async fn prompt_stream(
     agent: Agent,
-    prompt: &str,
     history: Vec<Message>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
     // Add system prompt to the beginning of history for non-repetitive context
@@ -133,7 +129,7 @@ pub async fn prompt_stream(
     history.insert(
         0,
         Message {
-            role: system,
+            role: SYSTEM,
             content: agent.system_prompt,
         },
     );
@@ -160,7 +156,7 @@ pub async fn prompt_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::dtos::Role::user;
+    use crate::api::dtos::Role::USER;
     use crate::api::request::pretty_print_stream;
     use anyhow::Result;
 
@@ -222,11 +218,11 @@ Reason: [why in 1-2 sentences]";
         Player 2: \"ronak777\", Team: [\"Dragonite\", \"Zoroark\", \"Chansey\", \"Azumarill\", \"Charizard\", \"Gengar\"]\n\n\
         Question: Which Pokemon should lead with and why?";
         history.push(Message {
-            role: user,
+            role: USER,
             content: user_prompt.to_string(),
         });
 
-        let res = prompt(agent, user_prompt, history).await?;
+        let res = prompt(agent, history).await?;
         assert_eq!(!res.is_empty(), true);
         println!("Response: {}", res);
         Ok(())
@@ -246,13 +242,13 @@ Reason: [why in 1-2 sentences]";
 
         let user_prompt = "Who are you? Explain in detail.";
         history.push(Message {
-            role: user,
+            role: USER,
             content: user_prompt.to_string(),
         });
 
-        let mut stream = prompt_stream(agent, user_prompt, history).await?;
+        let mut stream = prompt_stream(agent, history).await?;
 
-        pretty_print_stream(100, &mut stream).await?;
+        pretty_print_stream(120, &mut stream).await?;
 
         Ok(())
     }
