@@ -50,9 +50,26 @@ EVs: 104 HP / 36 Atk / 100 Def / 116 SpA / 72 SpD / 80 Spe
 - Hex
 ";
 
-#[test]
-fn deserialize_team() {
-    let team = Team::deserialize(TEAM);
+#[tokio::test]
+async fn deserialize_team_str() {
+    let team = Team::deserialize(TEAM).await;
+    assert_eq!(team.pokemon.len(), 6);
+
+    assert_eq!(team.pokemon[0].name, "Dragonite");
+    assert_eq!(team.pokemon[1].name, "Zoroark");
+    assert_eq!(team.pokemon[2].name, "Chansey");
+    assert_eq!(team.pokemon[3].name, "Azumarill");
+    assert_eq!(team.pokemon[4].name, "Charizard-Mega-X");
+    assert_eq!(team.pokemon[5].name, "Gengar");
+
+    team.display();
+}
+
+#[tokio::test]
+async fn deserialize_team_from_file() {
+    let team = Team::deserialize_from_file("./teams/GEN_VI.txt")
+        .await
+        .unwrap();
     assert_eq!(team.pokemon.len(), 6);
 
     assert_eq!(team.pokemon[0].name, "Dragonite");

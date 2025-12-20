@@ -1,3 +1,4 @@
+use anyhow::Result;
 use colored::Colorize;
 
 #[derive(Debug, Default)]
@@ -27,7 +28,7 @@ pub struct Team {
 
 impl Team {
     /// Deserialize a team from Pokémon Showdown text format
-    pub fn deserialize(input: &str) -> Self {
+    pub async fn deserialize(input: &str) -> Self {
         let mut pokemon = Vec::new();
         let mut current_pokemon: Option<Pokemon> = None;
 
@@ -112,7 +113,7 @@ impl Team {
         Team { pokemon }
     }
 
-    /// Serialize the team back to Pokemon Showdown text format
+    /// Serialize the team back to Pokémon Showdown text format
     pub fn serialize(&self) -> String {
         let mut output = String::new();
 
@@ -169,10 +170,15 @@ impl Team {
         output
     }
 
+    pub async fn deserialize_from_file(path: &str) -> Result<Self> {
+        let content = tokio::fs::read_to_string(path).await?;
+        Ok(Self::deserialize(&content).await)
+    }
+
     /// Alias for deserialize (backwards compatibility)
     #[deprecated(note = "Use deserialize() instead")]
-    pub fn parse(input: &str) -> Self {
-        Self::deserialize(input)
+    pub async fn parse(input: &str) -> Self {
+        Self::deserialize(input).await
     }
 
     pub fn display(&self) {
