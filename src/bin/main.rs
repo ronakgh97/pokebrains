@@ -23,14 +23,14 @@ async fn main() -> Result<()> {
     println!();
 
     println!("{}", "Enter room ID: ".yellow());
-    print!("{} ", ">>>".yellow());
+    print!("{} ", "↪".yellow());
     stdout().flush()?;
     let mut room_id = String::new();
     stdin()
         .read_line(&mut room_id)
         .expect("Failed to read input");
     println!("{}", "Enter your username: ".yellow());
-    print!("{} ", ">>>".yellow());
+    print!("{} ", "↪".yellow());
     stdout().flush()?;
     let mut player = String::new();
     stdin()

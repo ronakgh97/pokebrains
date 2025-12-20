@@ -1,8 +1,10 @@
-use crate::agents::{Agent, AgentBuilder, prompt};
+use crate::agents::{Agent, AgentBuilder, prompt, prompt_stream};
 use crate::dtos::{Message, Role};
 use crate::parser::logs::BattleEvents;
 use anyhow::Result;
 use colored::Colorize;
+use futures_util::Stream;
+use std::pin::Pin;
 
 const SYSTEM_PROMPT: &str = "\
 You are a Pokemon Showdown battle Assistant.\n\
@@ -63,6 +65,7 @@ impl BattleAgent {
             ..self
         })
     }
+
     pub async fn get_initial_suggestions(&mut self, events: BattleEvents) -> String {
         let mut prompt = events
             .init
@@ -94,6 +97,40 @@ impl BattleAgent {
         self.generate_response(prompt).await
     }
 
+    pub async fn get_initial_suggestions_stream(
+        &mut self,
+        events: BattleEvents,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
+        let mut prompt = events
+            .init
+            .iter()
+            .filter(|t| match t {
+                crate::parser::logs::Token::PREVIEW(s) if *s => false,
+                _ => true,
+            })
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        prompt.push('\n');
+
+        let team_match_up = format!(
+            "Player 1: {:?}, Team: {:?}\nPlayer 2: {:?}, Team: {:?}\n",
+            events.team[0].player,
+            events.team[0].pokemon,
+            events.team[1].player,
+            events.team[1].pokemon,
+        );
+        prompt.push_str(&team_match_up);
+        prompt.push('\n');
+
+        let question = "Which Pokemon should lead with and why?";
+        prompt.push_str(question);
+        prompt.push('\n');
+
+        self.generate_stream_response(prompt).await
+    }
+
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
         let mut prompt = String::new();
 
@@ -114,6 +151,54 @@ impl BattleAgent {
         prompt.push('\n');
 
         self.generate_response(prompt).await
+    }
+
+    pub async fn get_turn_suggestions_stream(
+        &mut self,
+        events: BattleEvents,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
+        let mut prompt = String::new();
+
+        // Add the last turn's data
+        if let Some(last_turn) = events.events.last() {
+            let turn_text = last_turn
+                .iter()
+                .filter(|t| !matches!(t, crate::parser::logs::Token::TURN(_)))
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            prompt.push_str(&turn_text);
+            prompt.push('\n');
+        }
+
+        let question = "Based on the current battle state, what is the optimal move or switch?";
+        prompt.push_str(question);
+        prompt.push('\n');
+
+        self.generate_stream_response(prompt).await
+    }
+
+    async fn generate_stream_response(
+        &mut self,
+        user_prompt: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
+        //DEBUG
+        println!();
+        println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
+
+        self.history.push(Message {
+            role: Role::USER,
+            content: user_prompt.clone(),
+        });
+
+        if let Some(agent) = &self.agent {
+            match prompt_stream(agent.clone(), self.history.clone()).await {
+                Ok(stream) => Ok(stream),
+                Err(e) => Err(anyhow::anyhow!("Error generating suggestions: {}", e)),
+            }
+        } else {
+            Err(anyhow::anyhow!("Agent not initialized."))
+        }
     }
 
     async fn generate_response(&mut self, user_prompt: String) -> String {
