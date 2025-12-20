@@ -43,6 +43,7 @@ pub enum Token {
     MEGA(String, String, Option<String>),
     SUPEREFFECTIVE(String),
     RESISTED(String),
+    MISS(String, String),
     CRIT(String),
     IMMUNE(String),
     CANT(String, String),
@@ -302,6 +303,13 @@ fn replace_player_ids_in_token(
             let new_pokemon =
                 replace_pokemon_id(&pokemon, you_prefix, opp_prefix, your_name, opp_name);
             Token::IMMUNE(new_pokemon)
+        }
+        Token::MISS(source, target) => {
+            let new_source =
+                replace_pokemon_id(&source, you_prefix, opp_prefix, your_name, opp_name);
+            let new_target =
+                replace_pokemon_id(&target, you_prefix, opp_prefix, your_name, opp_name);
+            Token::MISS(new_source, new_target)
         }
         Token::CANT(pokemon, reason) => {
             let new_pokemon =
@@ -581,6 +589,13 @@ pub fn parse_battle_log(line: &str, user_slot: &Option<String>, team: &[Team; 2]
         "-crit" if parts.len() >= 3 => Some(Token::CRIT(parts[2].to_string())),
         "-supereffective" if parts.len() >= 3 => Some(Token::SUPEREFFECTIVE(parts[2].to_string())),
         "-resisted" if parts.len() >= 3 => Some(Token::RESISTED(parts[2].to_string())),
+        "-miss" if parts.len() >= 3 => {
+            let source = parts[2].to_string(); // e.g., "p1a: Gengar"
+            let target = parts.get(3).map(|s| s.to_string()).unwrap_or_default(); // e.g., "p2a: Dragonite"
+
+            Some(Token::MISS(source, target))
+        }
+
         "-immune" if parts.len() >= 3 => Some(Token::IMMUNE(parts[2].to_string())),
         "cant" if parts.len() >= 4 => Some(Token::CANT(parts[2].to_string(), parts[3].to_string())),
         "-ability" if parts.len() >= 4 => {
@@ -682,6 +697,14 @@ impl fmt::Display for Token {
             }
             Token::SUPEREFFECTIVE(pokemon) => write!(f, "Super effective on {}!", pokemon),
             Token::RESISTED(pokemon) => write!(f, "{} resisted the attack", pokemon),
+            Token::MISS(source, target) => {
+                if !target.is_empty() {
+                    write!(f, "{} missed {}!", source, target)
+                } else {
+                    write!(f, "{}'s attack missed!", source)
+                }
+            }
+
             Token::CRIT(pokemon) => write!(f, "Critical hit on {}!", pokemon),
             Token::IMMUNE(pokemon) => write!(f, "{} is immune!", pokemon),
             Token::CANT(pokemon, reason) => write!(f, "{} can't move ({})", pokemon, reason),
