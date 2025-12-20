@@ -6,6 +6,7 @@ mod pokeapi;
 
 pub use agent::{BattleAgent, ModelType};
 pub use anyhow::Result;
+pub use api::{agents, dtos, request};
 pub use client::BattleClient;
 pub use colored::Colorize;
 pub use parser::logs::{BattleEvents, Token};

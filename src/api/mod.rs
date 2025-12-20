@@ -1,4 +1,4 @@
-mod agents;
-mod dtos;
-mod request;
+pub mod agents;
+pub mod dtos;
+pub mod request;
 mod tools;
