@@ -120,7 +120,7 @@ impl BattleAgent {
                 .filter(|t| !matches!(t, crate::parser::logs::Token::TURN(_)))
                 .map(|t| t.to_string())
                 .collect::<Vec<_>>()
-                .join("\n\n");
+                .join("\n");
             prompt.push_str(&turn_text);
             prompt.push('\n');
         }
@@ -142,7 +142,7 @@ impl BattleAgent {
                 Ok(response) => {
                     self.history.push(Message::user(prompt.clone()));
                     self.history.push(Message::assistant(response.clone()));
-                    response.clone()
+                    response.trim().to_string().clone()
                 }
                 Err(e) => format!("Error generating suggestions: {}", e),
             }

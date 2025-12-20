@@ -5,21 +5,24 @@ use xcap::Window;
 async fn main() -> Result<()> {
     let windows = Window::all()?;
 
-    //Find Pokémon showdown window
-    let showdown_window = windows.iter().find(|w| {
-        w.title()
-            .unwrap_or("Could able to find Showdown Window".to_string())
-            .contains("Showdown")
-    });
-
-    let image = match showdown_window {
-        Some(window) => window.capture_image()?,
-        None => {
-            panic!("Could not find Pokémon Showdown window");
+    // Print the titles of all captured windows
+    for window in windows {
+        if let Ok(title) = window.title() {
+            println!("Window Title: {}", title);
         }
-    };
-
-    image.save("./capture/showdown_capture.png")?;
+    }
 
     Ok(())
+}
+#[tokio::test]
+async fn test_capture() {
+    let windows = Window::all().unwrap();
+
+    let rust_rover = windows.iter().find(|w| {
+        w.title()
+            .unwrap_or("Could able to find Rust Rover Window".to_string())
+            .contains("pokebrains")
+    });
+
+    assert!(rust_rover.clone().is_some());
 }

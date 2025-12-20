@@ -119,7 +119,6 @@ fn test_initialization() {
 
 #[test]
 fn test_team_preview() {
-    println!("TEST 2: Team Preview Parsing");
     let mut battle = BattleEvents::new("ronak777".to_string());
 
     // Add team preview events
@@ -173,7 +172,6 @@ fn test_team_preview() {
 
 #[test]
 fn test_full_battle() {
-    println!("TEST 3: Full Battle Log Parsing");
     let mut battle = BattleEvents::new("ronak777".to_string());
 
     // Parse the entire battle log
@@ -250,7 +248,6 @@ fn test_full_battle() {
 
 #[test]
 fn test_turn_tracking() {
-    println!("TEST 4: Turn Tracking and Event Details");
     let mut battle = BattleEvents::new("ronak777".to_string());
 
     for line in BATTLE_LOG.lines() {
@@ -327,7 +324,6 @@ fn test_turn_tracking() {
 
 #[test]
 fn test_player_slot_detection() {
-    println!("TEST 5: Player Slot Detection and Labeling");
     let mut battle = BattleEvents::new("ronak777".to_string());
 
     for line in BATTLE_LOG.lines() {
@@ -365,8 +361,9 @@ fn test_player_slot_detection() {
     println!("  ✓ [Assist] labels applied");
     println!("  ✓ [Against] labels applied");
 
-    // Display sample turns for visual verification
+    // Display sample turns
     display_sample_turn(&battle, 1);
+    display_sample_turn(&battle, 2);
     display_sample_turn(&battle, 3);
 }
 
@@ -384,7 +381,6 @@ fn display_sample_turn(battle: &BattleEvents, turn_num: usize) {
 
 #[test]
 fn test_empty_battle() {
-    println!("TEST 1: Empty Battle");
     let battle = BattleEvents::new("testuser".to_string());
 
     assert_eq!(battle.events.len(), 0, "✗ Should have no events");
@@ -395,7 +391,6 @@ fn test_empty_battle() {
 
 #[test]
 fn test_partial_battle() {
-    println!("TEST 2: Partial Battle (No Winner)");
     let mut battle = BattleEvents::new("player2".to_string());
 
     battle.add_event("|player|p1|player1|100|1500");
@@ -428,7 +423,6 @@ fn test_partial_battle() {
 
 #[test]
 fn test_malformed_events() {
-    println!("TEST 3: Malformed Events");
     let mut battle = BattleEvents::new("testuser".to_string());
 
     // Add some malformed events (should be ignored or handled gracefully)
@@ -457,7 +451,6 @@ fn test_malformed_events() {
 
 #[test]
 fn test_critical_hits() {
-    println!("TEST 4: Critical Hits");
     let mut battle = BattleEvents::new("player1".to_string());
 
     battle.add_event("|player|p1|player1|100|1500");
@@ -492,7 +485,6 @@ fn test_critical_hits() {
 
 #[test]
 fn test_status_effects() {
-    println!("TEST 5: Status Effects and Conditions");
     let mut battle = BattleEvents::new("player1".to_string());
 
     battle.add_event("|player|p1|player1|100|1500");
@@ -527,7 +519,6 @@ fn test_status_effects() {
 
 #[test]
 fn test_weather_and_terrain() {
-    println!("TEST 6: Weather and Field Effects");
     let mut battle = BattleEvents::new("player1".to_string());
 
     battle.add_event("|player|p1|player1|100|1500");
@@ -555,7 +546,6 @@ fn test_weather_and_terrain() {
 
 #[test]
 fn test_mega_evolution() {
-    println!("TEST 7: Mega Evolution");
     let mut battle = BattleEvents::new("player1".to_string());
 
     battle.add_event("|player|p1|player1|100|1500");
