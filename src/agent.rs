@@ -1,10 +1,11 @@
 use crate::agents::{Agent, AgentBuilder, prompt, prompt_stream};
 use crate::dtos::{Message, Role};
 use crate::parser::logs::BattleEvents;
+use crate::request::log_typewriter_effect;
+use crate::tools_registry::ToolRegistry;
 use anyhow::Result;
 use colored::Colorize;
-use futures_util::Stream;
-use std::pin::Pin;
+use std::sync::Arc;
 
 const SYSTEM_PROMPT: &str = "\
 You are a Pokemon Showdown battle Assistant.\n\
@@ -29,7 +30,7 @@ pub struct BattleAgent {
     model: String,
     model_type: ModelType,
     agent: Option<Agent>,
-    history: Vec<Message>,
+    pub history: Vec<Message>,
 }
 
 impl BattleAgent {
@@ -42,7 +43,7 @@ impl BattleAgent {
         }
     }
 
-    pub fn build_agent(self, api_key: &str) -> Result<Self> {
+    pub fn build_agent(self, api_key: &str, tools: ToolRegistry) -> Result<Self> {
         let agent = match self.model_type {
             ModelType::Local => AgentBuilder::new()
                 .model(&self.model)
@@ -50,6 +51,7 @@ impl BattleAgent {
                 .api_key(api_key)
                 .system_prompt(SYSTEM_PROMPT)
                 .temperature(0.4)
+                .tool_registry(Arc::new(tools))
                 .build()?,
             ModelType::Cloud => AgentBuilder::new()
                 .model(&self.model)
@@ -57,6 +59,7 @@ impl BattleAgent {
                 .api_key(api_key)
                 .system_prompt(SYSTEM_PROMPT)
                 .temperature(0.4)
+                .tool_registry(Arc::new(tools))
                 .build()?,
         };
 
@@ -67,6 +70,8 @@ impl BattleAgent {
     }
 
     pub async fn get_initial_suggestions(&mut self, events: BattleEvents) -> String {
+        println!("\n\n{}\n\n", "Generating initial suggestions...".yellow());
+
         let mut prompt = events
             .init
             .iter()
@@ -97,10 +102,9 @@ impl BattleAgent {
         self.generate_response(prompt).await
     }
 
-    pub async fn get_initial_suggestions_stream(
-        &mut self,
-        events: BattleEvents,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
+    pub async fn get_initial_suggestions_stream(&mut self, events: BattleEvents) -> Result<()> {
+        println!("\n\n{}\n\n", "Generating initial suggestions...".yellow());
+
         let mut prompt = events
             .init
             .iter()
@@ -128,10 +132,14 @@ impl BattleAgent {
         prompt.push_str(question);
         prompt.push('\n');
 
-        self.generate_stream_response(prompt).await
+        self.generate_stream_response(prompt).await?;
+
+        Ok(())
     }
 
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
+        println!("\n\n{}\n\n", "Generating turn suggestions...".yellow());
+
         let mut prompt = String::new();
 
         // Add the last turn's data
@@ -153,10 +161,9 @@ impl BattleAgent {
         self.generate_response(prompt).await
     }
 
-    pub async fn get_turn_suggestions_stream(
-        &mut self,
-        events: BattleEvents,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
+    pub async fn get_turn_suggestions_stream(&mut self, events: BattleEvents) -> Result<()> {
+        println!("\n\n{}\n\n", "Generating turn suggestions...".yellow());
+
         let mut prompt = String::new();
 
         // Add the last turn's data
@@ -175,30 +182,9 @@ impl BattleAgent {
         prompt.push_str(question);
         prompt.push('\n');
 
-        self.generate_stream_response(prompt).await
-    }
+        self.generate_stream_response(prompt).await?;
 
-    async fn generate_stream_response(
-        &mut self,
-        user_prompt: String,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String, anyhow::Error>> + Send>>> {
-        //DEBUG
-        println!();
-        println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
-
-        self.history.push(Message {
-            role: Role::USER,
-            content: user_prompt.clone(),
-        });
-
-        if let Some(agent) = &self.agent {
-            match prompt_stream(agent.clone(), self.history.clone()).await {
-                Ok(stream) => Ok(stream),
-                Err(e) => Err(anyhow::anyhow!("Error generating suggestions: {}", e)),
-            }
-        } else {
-            Err(anyhow::anyhow!("Agent not initialized."))
-        }
+        Ok(())
     }
 
     async fn generate_response(&mut self, user_prompt: String) -> String {
@@ -208,7 +194,10 @@ impl BattleAgent {
 
         self.history.push(Message {
             role: Role::USER,
-            content: user_prompt.clone(),
+            content: Option::from(user_prompt.clone()),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
         });
 
         if let Some(agent) = &self.agent {
@@ -216,15 +205,52 @@ impl BattleAgent {
                 Ok(response) => {
                     self.history.push(Message {
                         role: Role::ASSISTANT,
-                        content: response.trim().to_string(),
+                        content: Option::from(response.0.trim().to_string()),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
                     });
 
-                    response.trim().to_string().clone()
+                    response.0.trim().to_string().clone()
                 }
                 Err(e) => format!("Error generating suggestions: {}", e),
             }
         } else {
             "Agent not initialized.".to_string()
+        }
+    }
+
+    async fn generate_stream_response(&mut self, user_prompt: String) -> Result<()> {
+        //DEBUG
+        println!();
+        println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
+
+        self.history.push(Message {
+            role: Role::USER,
+            content: Option::from(user_prompt.clone()),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        });
+
+        if let Some(agent) = &self.agent {
+            let stream = prompt_stream(agent.clone(), self.history.clone()).await?;
+
+            // Print with typewriter effect AND accumulate
+            let response = log_typewriter_effect(150, stream).await?;
+
+            // Save to history
+            self.history.push(Message {
+                role: Role::ASSISTANT,
+                content: Some(response.trim().to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
+            });
+
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Agent not initialized."))
         }
     }
 }

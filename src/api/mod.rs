@@ -1,4 +1,4 @@
 pub mod agents;
 pub mod dtos;
 pub mod request;
-mod tools;
+pub mod tools_registry;

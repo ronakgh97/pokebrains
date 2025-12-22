@@ -1,10 +1,12 @@
+use pokebrains::tools::PokeAPITool;
+use pokebrains::tools_registry::ToolRegistry;
 use pokebrains::{BattleAgent, BattleClient, Colorize, ModelType, Result};
 use std::io::Write;
 use std::io::{stdin, stdout};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let asscii_art = r"
+    let text_art = r"
     
    ▄███████▄  ▄██████▄     ▄█   ▄█▄    ▄████████ ▀█████████▄     ▄████████    ▄████████  ▄█  ███▄▄▄▄      ▄████████ 
   ███    ███ ███    ███   ███ ▄███▀   ███    ███   ███    ███   ███    ███   ███    ███ ███  ███▀▀▀██▄   ███    ███ 
@@ -17,7 +19,7 @@ async fn main() -> Result<()> {
                           ▀                                     ███    ███
     ";
 
-    println!("{}", asscii_art.bright_green());
+    println!("{}", text_art.bright_green());
 
     println!();
     println!();
@@ -40,7 +42,11 @@ async fn main() -> Result<()> {
     let mut agent = None;
 
     let battle_agent = BattleAgent::new("qwen/qwen3-8b", ModelType::Local);
-    match battle_agent.build_agent("local") {
+
+    let mut tool_registry: ToolRegistry = ToolRegistry::new();
+    tool_registry.register(PokeAPITool);
+
+    match battle_agent.build_agent("local", tool_registry) {
         Ok(a) => {
             println!("{}", "AI Agent initialized successfully!".green());
             agent = Some(a);

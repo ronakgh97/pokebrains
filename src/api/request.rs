@@ -6,6 +6,31 @@ use reqwest::Client;
 use std::io::{self, Write};
 use tokio::time::{Duration, sleep};
 
+pub async fn send_completion_request(
+    url: String,
+    api_key: String,
+    request: CompletionRequest,
+) -> Result<CompletionResponse> {
+    let client = Client::new();
+
+    let response = client
+        .post(format!("{}/chat/completions", url))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&request)
+        .send()
+        .await
+        .context("failed to send request")?
+        .error_for_status()
+        .context("request returned error status")?;
+
+    let completion: CompletionResponse = response
+        .json()
+        .await
+        .context("failed to deserialize completion response")?;
+
+    Ok(completion)
+}
+
 pub async fn send_request(
     url: String,
     api_key: String,
@@ -36,7 +61,9 @@ pub async fn send_request(
         .content
         .clone();
 
-    Ok(answer)
+    let content = answer.ok_or_else(|| anyhow::anyhow!("No content in response"))?;
+
+    Ok(content)
 }
 
 pub async fn send_request_stream(
@@ -81,10 +108,11 @@ pub async fn send_request_stream(
 }
 
 /// Consumes a stream and prints it with a typewriter effect
-pub async fn pretty_print_stream(
+/// Return the accumulated response as a String
+pub async fn log_typewriter_effect(
     wrap_len: usize,
     mut stream: impl Stream<Item = Result<String>> + Unpin,
-) -> Result<()> {
+) -> Result<String> {
     // Collect the full text first for proper word wrapping
     let mut full_text = String::new();
     while let Some(chunk) = stream.next().await {
@@ -98,10 +126,10 @@ pub async fn pretty_print_stream(
     for c in wrapped_text.chars() {
         print!("{}", c);
         io::stdout().flush()?;
-        sleep(Duration::from_millis(15)).await;
+        sleep(Duration::from_millis(10)).await;
     }
     println!();
-    Ok(())
+    Ok(full_text)
 }
 
 fn word_wrap(text: &str, width: usize) -> String {

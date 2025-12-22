@@ -2,7 +2,7 @@ use anyhow::Result;
 use pokebrains::agents::{AgentBuilder, prompt, prompt_stream};
 use pokebrains::dtos::Message;
 use pokebrains::dtos::Role::USER;
-use pokebrains::request::pretty_print_stream;
+use pokebrains::request::log_typewriter_effect;
 
 #[tokio::test]
 async fn test_agent_builder_missing_model() {
@@ -63,12 +63,15 @@ async fn test_agent_builder_run() -> Result<()> {
         Question: Which Pokemon should lead with and why?";
     history.push(Message {
         role: USER,
-        content: user_prompt.to_string(),
+        content: Option::from(user_prompt.to_string()),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
     });
 
     let res = prompt(agent, history).await?;
-    assert_eq!(!res.is_empty(), true);
-    println!("Response: {}", res);
+    assert_eq!(!res.0.is_empty(), true);
+    println!("Response: {:?}", res);
     Ok(())
 }
 
@@ -87,12 +90,15 @@ async fn test_agent_builder_run_stream() -> Result<()> {
     let user_prompt = "Who are you? Explain in detail.";
     history.push(Message {
         role: USER,
-        content: user_prompt.to_string(),
+        content: Option::from(user_prompt.to_string()),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
     });
 
     let mut stream = prompt_stream(agent, history).await?;
 
-    pretty_print_stream(120, &mut stream).await?;
+    log_typewriter_effect(120, &mut stream).await?;
 
     Ok(())
 }

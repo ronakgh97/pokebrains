@@ -1872,6 +1872,7 @@ name = "pokebrains"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "colored",
  "eventsource-stream",
  "futures-util",

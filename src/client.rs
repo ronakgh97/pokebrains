@@ -1,6 +1,5 @@
 use crate::agent::BattleAgent;
 use crate::parser::logs::BattleEvents;
-use crate::request::pretty_print_stream;
 use crate::{Colorize, Result};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
@@ -111,20 +110,18 @@ impl BattleClient {
                             && self.event_logs.team[1].pokemon.len() == 6
                         {
                             println!();
-                            println!("\n{}\n", "Generating initial strategy...".cyan().bold());
-                            let suggestion = agent
+                            let _suggestion = agent
                                 .get_initial_suggestions_stream(self.event_logs.clone())
-                                .await;
+                                .await?;
                             self.event_logs.is_init_suggestions_generated = true;
-                            println!("\n{}\n\n", "[AI SUGGESTION]".green().bold());
-                            match suggestion {
-                                Ok(stream) => {
-                                    pretty_print_stream(150, stream).await?;
-                                }
-                                Err(e) => {
-                                    return Err(anyhow::anyhow!("Error in stream: {}", e));
-                                }
-                            }
+                            // match suggestion {
+                            //     Ok(stream) => {
+                            //         log_typewriter_effect(150, stream).await?;
+                            //     }
+                            //     Err(e) => {
+                            //         return Err(anyhow::anyhow!("Error in stream: {}", e));
+                            //     }
+                            // }
                         }
                         // Battle is ongoing and we have new turn data
                         let current_turn = self.event_logs.get_current_turn();
@@ -138,19 +135,17 @@ impl BattleClient {
                         }
 
                         if self.event_logs.battle_started && current_turn > self.last_turn {
-                            println!("\n{}\n", "Generating turn suggestion...".cyan().bold());
-                            let suggestion = agent
+                            let _suggestion = agent
                                 .get_turn_suggestions_stream(self.event_logs.clone())
-                                .await;
-                            println!("\n{}\n\n", "[AI SUGGESTION]".green().bold());
-                            match suggestion {
-                                Ok(stream) => {
-                                    pretty_print_stream(120, stream).await?;
-                                }
-                                Err(e) => {
-                                    return Err(anyhow::anyhow!("Error in stream: {}", e));
-                                }
-                            }
+                                .await?;
+                            // match suggestion {
+                            //     Ok(stream) => {
+                            //         log_typewriter_effect(120, stream).await?;
+                            //     }
+                            //     Err(e) => {
+                            //         return Err(anyhow::anyhow!("Error in stream: {}", e));
+                            //     }
+                            // }
                             self.last_turn = current_turn;
                         }
                     }

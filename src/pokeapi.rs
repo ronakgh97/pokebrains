@@ -1,8 +1,8 @@
 use anyhow::Result;
 use colored::Colorize;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonInfo {
     pub id: i32,
     pub name: String,
@@ -14,12 +14,12 @@ pub struct PokemonInfo {
     pub stats: Vec<PokemonStat>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonTypeSlot {
     pub r#type: NamedAPIResource,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonAbilitySlot {
     pub is_hidden: bool,
     pub ability: NamedAPIResource,
@@ -27,14 +27,14 @@ pub struct PokemonAbilitySlot {
     pub effect: Option<String>, // Added to store fetched effect
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AbilityDetails {
     #[allow(dead_code)]
     name: String,
     pub effect_entries: Vec<AbilityEffectEntry>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AbilityEffectEntry {
     #[allow(dead_code)]
     effect: String,
@@ -42,20 +42,66 @@ pub struct AbilityEffectEntry {
     pub language: NamedAPIResource,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonMoveSlot {
     pub r#move: NamedAPIResource,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonStat {
     pub base_stat: i32,
     pub stat: NamedAPIResource,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NamedAPIResource {
     pub name: String,
+}
+
+impl PokemonInfo {
+    pub fn to_readable_form(&self) -> String {
+        let mut s = String::new();
+        s.push_str(&format!("Pokemon: {}\n", self.name.to_uppercase()));
+        // Types
+        let types: Vec<String> = self.types.iter().map(|t| t.r#type.name.clone()).collect();
+        s.push_str(&format!("Types:   {}\n", types.join(", ")));
+        // Height & Weight
+        s.push_str(&format!(
+            "Height: {} | Weight: {}\n\n",
+            self.height, self.weight
+        ));
+        // Stats
+        s.push_str("Stats:\n");
+        for stat in &self.stats {
+            s.push_str(&format!("  {:>15} : {}\n", stat.stat.name, stat.base_stat));
+        }
+        // Abilities
+        s.push_str("\nAbilities:\n");
+        for ability in &self.abilities {
+            let hidden_text = if ability.is_hidden {
+                "(Hidden)"
+            } else {
+                "        "
+            };
+            if let Some(effect) = &ability.effect {
+                s.push_str(&format!(
+                    " {:>15} {} - {}\n",
+                    ability.ability.name, hidden_text, effect
+                ));
+            } else {
+                s.push_str(&format!("  {:>15} {}\n", ability.ability.name, hidden_text));
+            }
+        }
+        // Moves
+        s.push_str(&format!("\nMoves: (Total: {})\n", self.moves.len()));
+        for mv in self.moves.iter().take(10) {
+            s.push_str(&format!("  - {}\n", mv.r#move.name));
+        }
+        if self.moves.len() > 10 {
+            s.push_str(&format!("  ... and {} more\n", self.moves.len() - 10));
+        }
+        s
+    }
 }
 
 pub async fn fetch_pokemon_info(pokemon_name: &str) -> Result<PokemonInfo> {
