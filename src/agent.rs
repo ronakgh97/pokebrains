@@ -1,4 +1,7 @@
-use crate::agents::{Agent, AgentBuilder, prompt, prompt_stream};
+#[allow(unused)]
+use crate::agents::{
+    Agent, AgentBuilder, prompt, prompt_stream, prompt_with_tools, prompt_with_tools_stream,
+};
 use crate::dtos::{Message, Role};
 use crate::parser::logs::BattleEvents;
 use crate::request::log_typewriter_effect;
@@ -16,6 +19,7 @@ RULES:\n\
 - Give ONE concrete action only\n\
 - Keep reasoning under 2 sentences\n\
 - No speculation or uncertainty\n\
+- Use tools at your disposal for accurate suggestions (if needed)\n\
 \n\
 RESPONSE FORMAT:\n\
 Action: [specific move/switch]\n\
@@ -70,7 +74,7 @@ impl BattleAgent {
     }
 
     pub async fn get_initial_suggestions(&mut self, events: BattleEvents) -> String {
-        println!("\n\n{}\n\n", "Generating initial suggestions...".yellow());
+        println!("\n{}\n", "Generating initial suggestions...".yellow());
 
         let mut prompt = events
             .init
@@ -103,7 +107,7 @@ impl BattleAgent {
     }
 
     pub async fn get_initial_suggestions_stream(&mut self, events: BattleEvents) -> Result<()> {
-        println!("\n\n{}\n\n", "Generating initial suggestions...".yellow());
+        println!("\n{}\n", "Generating initial suggestions...".yellow());
 
         let mut prompt = events
             .init
@@ -138,7 +142,7 @@ impl BattleAgent {
     }
 
     pub async fn get_turn_suggestions(&mut self, events: BattleEvents) -> String {
-        println!("\n\n{}\n\n", "Generating turn suggestions...".yellow());
+        println!("\n{}\n", "Generating turn suggestions...".yellow());
 
         let mut prompt = String::new();
 
@@ -162,7 +166,7 @@ impl BattleAgent {
     }
 
     pub async fn get_turn_suggestions_stream(&mut self, events: BattleEvents) -> Result<()> {
-        println!("\n\n{}\n\n", "Generating turn suggestions...".yellow());
+        println!("\n{}\n", "Generating turn suggestions...".yellow());
 
         let mut prompt = String::new();
 
@@ -201,17 +205,17 @@ impl BattleAgent {
         });
 
         if let Some(agent) = &self.agent {
-            match prompt(agent.clone(), self.history.clone()).await {
+            match prompt_with_tools(agent.clone(), self.history.clone()).await {
                 Ok(response) => {
                     self.history.push(Message {
                         role: Role::ASSISTANT,
-                        content: Option::from(response.0.trim().to_string()),
+                        content: Option::from(response.trim().to_string()),
                         tool_calls: None,
                         tool_call_id: None,
                         name: None,
                     });
 
-                    response.0.trim().to_string().clone()
+                    response.trim().to_string().clone()
                 }
                 Err(e) => format!("Error generating suggestions: {}", e),
             }
@@ -234,7 +238,7 @@ impl BattleAgent {
         });
 
         if let Some(agent) = &self.agent {
-            let stream = prompt_stream(agent.clone(), self.history.clone()).await?;
+            let stream = prompt_with_tools_stream(agent.clone(), self.history.clone()).await?;
 
             // Print with typewriter effect AND accumulate
             let response = log_typewriter_effect(150, stream).await?;
