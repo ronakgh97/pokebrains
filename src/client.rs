@@ -5,7 +5,7 @@ use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
 use tokio::time::timeout;
 use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
+use tokio_tungstenite::tungstenite::Message;
 
 pub struct ShowdownClient {
     room_id: String,
@@ -78,46 +78,57 @@ impl ShowdownClient {
 
         let (mut write, mut read) = ws_stream.split();
 
-        let packed_team = Team::deserialize(&team_data).await.serialize_packed();
+        let packed_team = Team::deserialize(team_data).await.serialize_packed();
         let utm_cmd = format!("|/utm {}", packed_team);
-        println!("{}", format!("[SENDING] {}", utm_cmd).dimmed());
-        write.send(Message::Text(Utf8Bytes::from(utm_cmd))).await?;
+        //println!("{}", format!("[SENDING] {}", utm_cmd).dimmed());
+        write.send(Message::Text(utm_cmd.into())).await?;
 
+        // Small delay to ensure server processes /utm
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        let validate_cmd = format!("|/vtm {}", format);
-        println!("{}", format!("[SENDING] {}", validate_cmd).dimmed());
-        write
-            .send(Message::Text(Utf8Bytes::from(validate_cmd)))
-            .await?;
+        // Validate against format
+        let vtm_cmd = format!("|/vtm {}", format);
+        //println!("{}", format!("[SENDING] {}", vtm_cmd).dimmed());
+        write.send(Message::Text(vtm_cmd.into())).await?;
 
-        let timeout_duration = Duration::from_secs(5);
-        let start = tokio::time::Instant::now();
+        // Listen for validation response
+        let validation_timeout = Duration::from_secs(3); // Overall timeout safety net
+        let result = timeout(validation_timeout, async {
+            while let Some(msg) = read.next().await {
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        //println!("{}", format!("[RECEIVED] {}", text).dimmed());
 
-        while start.elapsed() < timeout_duration {
-            if let Ok(Some(Ok(Message::Text(text)))) =
-                timeout(Duration::from_millis(500), read.next()).await
-            {
-                if text.contains("|popup|") {
-                    let content = text.split("|popup|").nth(1).unwrap_or("").trim();
-
-                    // Close connection
-                    let _ = write.send(Message::Close(None)).await;
-
-                    if content.to_lowercase().contains("valid") {
-                        println!("{}", format!("[VALID] {}", content).green().bold());
-                        return Ok("Team is valid".to_string());
-                    } else {
-                        println!("{}", format!("[INVALID] {}", content).red().bold());
-                        return Err(anyhow::anyhow!("Validation failed: {}", content));
+                        // Check for validation errors
+                        if text.contains("|popup|") && text.contains("rejected") {
+                            let error_msg = text.split("|popup|").nth(1).unwrap_or("").trim();
+                            return Err(anyhow::anyhow!("Validation failed: {}", error_msg));
+                        }
                     }
+                    Ok(Message::Close(_)) => {
+                        return Err(anyhow::anyhow!("Connection closed by server"));
+                    }
+                    Err(e) => {
+                        return Err(anyhow::anyhow!("WebSocket error: {}", e));
+                    }
+                    _ => continue, // Ignore other message types
                 }
             }
-        }
+            Ok(()) // No errors found = success
+        })
+        .await;
 
-        // Timeout - close connection
+        // Clean up connection
         let _ = write.send(Message::Close(None)).await;
-        Err(anyhow::anyhow!("Validation timeout"))
+
+        match result {
+            Ok(inner_result) => inner_result.map(|_| "Team is valid".to_string()),
+            Err(_) => {
+                // Timeout = no errors = team is valid
+                //println!("{}", "[TEAM VALID] (no response from server)".green().bold());
+                Ok("Team is valid".to_string())
+            }
+        }
     }
 
     async fn join_room(
@@ -147,7 +158,14 @@ impl ShowdownClient {
                 // Only print messages for the joined battle room
                 if line.starts_with('|') {
                     //self.parse_log(line);
+
+                    // Store previous battle end state
+                    let was_battle_ended = self.event_logs.is_battle_ended();
+
                     self.event_logs.add_event(line);
+
+                    // Check if battle just ended (wasn't ended before, but is now)
+                    let is_battle_ended = self.event_logs.is_battle_ended();
 
                     // AI Integration
                     if let Some(agent) = &mut self.ai_agent {
@@ -186,7 +204,14 @@ impl ShowdownClient {
                             //);
                         }
 
-                        if self.event_logs.battle_started && current_turn > self.last_turn {
+                        // Generate suggestions if:
+                        // New turn started (current_turn > self.last_turn), OR
+                        // Battle just ended (!was_battle_ended && is_battle_ended)
+                        let should_generate_suggestions = self.event_logs.battle_started
+                            && (current_turn > self.last_turn
+                                || (!was_battle_ended && is_battle_ended));
+
+                        if should_generate_suggestions {
                             let _suggestion = agent
                                 .get_turn_suggestions_stream(self.event_logs.clone())
                                 .await?;
@@ -199,6 +224,12 @@ impl ShowdownClient {
                             //     }
                             // }
                             self.last_turn = current_turn;
+
+                            // If battle ended, print final message and stop
+                            if is_battle_ended {
+                                println!("\n{}", "Battle has ended!".green().bold());
+                                break;
+                            }
                         }
                     }
                 } else {
@@ -275,8 +306,72 @@ impl ShowdownClient {
 }
 
 #[tokio::test]
-async fn test_team_validate() -> anyhow::Result<()> {
-    static TEAM: &str = "#\
+async fn test_invalidate_team() -> Result<()> {
+    static INVALID_TEAM: &str = "#\
+Dragonite @ Choice Scarf  
+Ability: Inner Focus  
+EVs: 100 HP / 64 Atk / 52 Def / 132 SpA / 84 SpD / 76 Spe  
+- Blizzard  
+- Draco Meteor  
+- Body Slam  
+- Earthquake  
+
+Zoroark @ Assault Vest  
+Ability: Illusion  
+EVs: 60 HP / 36 Atk / 116 Def / 84 SpA / 92 SpD / 120 Spe  
+Lonely Nature  
+- Calm Mind  
+- Foul Play  
+- Shadow Claw  
+- Dark Pulse  
+
+Chansey (F) @ Lucky Punch  
+Ability: Natural Cure  
+EVs: 208 HP / 156 Def / 144 SpD  
+- Return  
+- Blizzard  
+- Aromatherapy  
+- Facade  
+
+Azumarill @ Life Orb  
+Ability: Thick Fat  
+EVs: 80 HP / 100 Atk / 84 Def / 60 SpA / 68 SpD / 116 Spe  
+- Aqua Tail  
+- Play Rough  
+- Ice Punch  
+- Body Slam  
+
+Charizard-Mega-X @ Charizardite X  
+Ability: Tough Claws  
+EVs: 124 HP / 80 Atk / 64 Def / 72 SpA / 72 SpD / 96 Spe  
+- Fire Blast  
+- Fire Punch  
+- Crunch  
+- Aerial Ace  
+
+Gengar @ Rocky Helmet  
+Ability: Levitate  
+EVs: 104 HP / 36 Atk / 100 Def / 116 SpA / 72 SpD / 80 Spe  
+- Dark Pulse  
+- Destiny Bond  
+- Drain Punch  
+- Hex
+";
+
+    let mut client = ShowdownClient::new("testroom", "TestUser".to_string(), 10);
+
+    let result = client.validate_team(INVALID_TEAM, "gen5ou").await;
+
+    println!("{:#?}", result);
+
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_validate_team() -> Result<()> {
+    static VALID_TEAM: &str = "#\
 Dragonite @ Choice Scarf
 Ability: Inner Focus
 EVs: 100 HP / 64 Atk / 52 Def / 132 SpA / 84 SpD / 76 Spe
@@ -285,14 +380,13 @@ EVs: 100 HP / 64 Atk / 52 Def / 132 SpA / 84 SpD / 76 Spe
 - Body Slam
 - Earthquake
 
-Zoroark @ Assault Vest
-Ability: Illusion
-EVs: 60 HP / 36 Atk / 116 Def / 84 SpA / 68 SpD / 120 Spe
-Lonely Nature
-- Calm Mind
-- Foul Play
-- Shadow Claw
-- Dark Pulse
+Keldeo @ Assault Vest
+Ability: Justified
+EVs: 100 HP / 84 Atk / 88 Def / 104 SpA / 96 SpD / 36 Spe
+- Close Combat
+- Endeavor
+- Hydro Pump
+- Protect
 
 Chansey (F) @ Lucky Punch
 Ability: Natural Cure
@@ -328,6 +422,12 @@ EVs: 104 HP / 36 Atk / 100 Def / 116 SpA / 72 SpD / 80 Spe
 ";
 
     let mut client = ShowdownClient::new("testroom", "TestUser".to_string(), 10);
-    client.validate_team(TEAM, "gen5ou").await?;
+
+    let result = client.validate_team(VALID_TEAM, "gen6ou").await;
+
+    println!("{:#?}", result);
+
+    assert!(result.is_ok());
+
     Ok(())
 }

@@ -92,6 +92,25 @@ impl BattleEvents {
         0
     }
 
+    /// Check if the battle has ended (win or tie)
+    pub fn is_battle_ended(&self) -> bool {
+        // Check in buffer first
+        for token in &self.event_buffer {
+            if matches!(token, Token::WIN(_) | Token::TIE) {
+                return true;
+            }
+        }
+        // Check in last completed turn
+        if let Some(last_turn) = self.events.last() {
+            for token in last_turn {
+                if matches!(token, Token::WIN(_) | Token::TIE) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn add_setup(&mut self, event: &str) {
         if let Some(token) = parse_title_and_gen(event) {
             self.init.push(token);

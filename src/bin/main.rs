@@ -1,6 +1,6 @@
 use pokebrains::tools::PokeAPITool;
 use pokebrains::tools_registry::ToolRegistry;
-use pokebrains::{BattleAgent, BattleClient, Colorize, ModelType, Result};
+use pokebrains::{BattleAgent, Colorize, ModelType, Result, ShowdownClient};
 use std::io::Write;
 use std::io::{stdin, stdout};
 
@@ -67,16 +67,16 @@ async fn main() -> Result<()> {
             "{}",
             "Room ID is null or invalid, connecting to lobby".yellow()
         );
-        let mut battle_room = BattleClient::new("lobby", player, 30);
+        let mut battle_room = ShowdownClient::new("lobby", player, 30);
         battle_room.ai_agent = agent;
-        if let Err(e) = battle_room.connect().await {
+        if let Err(e) = battle_room.connect_to_room().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     } else {
         println!("{}", format!("Connecting to room: {}", room_id).green());
-        let mut battle_room = BattleClient::new(room_id, player, 30);
+        let mut battle_room = ShowdownClient::new(room_id, player, 30);
         battle_room.ai_agent = agent;
-        if let Err(e) = battle_room.connect().await {
+        if let Err(e) = battle_room.connect_to_room().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     }
