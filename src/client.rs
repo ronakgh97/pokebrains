@@ -1,13 +1,13 @@
 use crate::agent::BattleAgent;
 use crate::parser::logs::BattleEvents;
-use crate::{Colorize, Result};
+use crate::{Colorize, Result, Team};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
 use tokio::time::timeout;
 use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::{Message, Utf8Bytes};
 
-pub struct BattleClient {
+pub struct ShowdownClient {
     room_id: String,
     url: String,
     connection_timeout: u64,
@@ -17,9 +17,9 @@ pub struct BattleClient {
     last_turn: usize, // Track the last processed turn
 }
 
-impl BattleClient {
+impl ShowdownClient {
     pub fn new(room_id: &str, user: String, connection_timeout: u64) -> Self {
-        BattleClient {
+        ShowdownClient {
             room_id: room_id.to_string(),
             url: "wss://sim3.psim.us/showdown/websocket".to_string(),
             connection_timeout,
@@ -30,7 +30,7 @@ impl BattleClient {
         }
     }
 
-    pub async fn connect(&mut self) -> Result<()> {
+    pub async fn connect_to_room(&mut self) -> Result<()> {
         let connect_future = connect_async(&self.url);
         let (ws_stream, _response) =
             timeout(Duration::from_secs(self.connection_timeout), connect_future).await??;
@@ -68,7 +68,59 @@ impl BattleClient {
         Ok(())
     }
 
-    pub async fn join_room(
+    pub async fn validate_team(&mut self, team_data: &str, format: &str) -> Result<String> {
+        let connect_future = connect_async(&self.url);
+        let (ws_stream, _response) =
+            timeout(Duration::from_secs(self.connection_timeout), connect_future).await??;
+
+        self.is_connected = true;
+        println!("{}", "Connection established!".green());
+
+        let (mut write, mut read) = ws_stream.split();
+
+        let packed_team = Team::deserialize(&team_data).await.serialize_packed();
+        let utm_cmd = format!("|/utm {}", packed_team);
+        println!("{}", format!("[SENDING] {}", utm_cmd).dimmed());
+        write.send(Message::Text(Utf8Bytes::from(utm_cmd))).await?;
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let validate_cmd = format!("|/vtm {}", format);
+        println!("{}", format!("[SENDING] {}", validate_cmd).dimmed());
+        write
+            .send(Message::Text(Utf8Bytes::from(validate_cmd)))
+            .await?;
+
+        let timeout_duration = Duration::from_secs(5);
+        let start = tokio::time::Instant::now();
+
+        while start.elapsed() < timeout_duration {
+            if let Ok(Some(Ok(Message::Text(text)))) =
+                timeout(Duration::from_millis(500), read.next()).await
+            {
+                if text.contains("|popup|") {
+                    let content = text.split("|popup|").nth(1).unwrap_or("").trim();
+
+                    // Close connection
+                    let _ = write.send(Message::Close(None)).await;
+
+                    if content.to_lowercase().contains("valid") {
+                        println!("{}", format!("[VALID] {}", content).green().bold());
+                        return Ok("Team is valid".to_string());
+                    } else {
+                        println!("{}", format!("[INVALID] {}", content).red().bold());
+                        return Err(anyhow::anyhow!("Validation failed: {}", content));
+                    }
+                }
+            }
+        }
+
+        // Timeout - close connection
+        let _ = write.send(Message::Close(None)).await;
+        Err(anyhow::anyhow!("Validation timeout"))
+    }
+
+    async fn join_room(
         &self,
         write: &mut futures_util::stream::SplitSink<
             tokio_tungstenite::WebSocketStream<
@@ -220,4 +272,62 @@ impl BattleClient {
             _ => println!("{}", format!("[{}] {}", msg_type, content).dimmed()),
         }
     }
+}
+
+#[tokio::test]
+async fn test_team_validate() -> anyhow::Result<()> {
+    static TEAM: &str = "#\
+Dragonite @ Choice Scarf
+Ability: Inner Focus
+EVs: 100 HP / 64 Atk / 52 Def / 132 SpA / 84 SpD / 76 Spe
+- Blizzard
+- Draco Meteor
+- Body Slam
+- Earthquake
+
+Zoroark @ Assault Vest
+Ability: Illusion
+EVs: 60 HP / 36 Atk / 116 Def / 84 SpA / 68 SpD / 120 Spe
+Lonely Nature
+- Calm Mind
+- Foul Play
+- Shadow Claw
+- Dark Pulse
+
+Chansey (F) @ Lucky Punch
+Ability: Natural Cure
+EVs: 208 HP / 156 Def / 144 SpD
+- Return
+- Blizzard
+- Aromatherapy
+- Facade
+
+Azumarill @ Life Orb
+Ability: Thick Fat
+EVs: 80 HP / 100 Atk / 84 Def / 60 SpA / 68 SpD / 116 Spe
+- Aqua Tail
+- Play Rough
+- Ice Punch
+- Body Slam
+
+Charizard-Mega-X @ Charizardite X
+Ability: Tough Claws
+EVs: 124 HP / 80 Atk / 64 Def / 72 SpA / 72 SpD / 96 Spe
+- Fire Blast
+- Fire Punch
+- Crunch
+- Aerial Ace
+
+Gengar @ Rocky Helmet
+Ability: Levitate
+EVs: 104 HP / 36 Atk / 100 Def / 116 SpA / 72 SpD / 80 Spe
+- Dark Pulse
+- Destiny Bond
+- Drain Punch
+- Hex
+";
+
+    let mut client = ShowdownClient::new("testroom", "TestUser".to_string(), 10);
+    client.validate_team(TEAM, "gen5ou").await?;
+    Ok(())
 }
