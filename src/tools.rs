@@ -4,7 +4,7 @@ use crate::{PokemonInfo, Team};
 use anyhow::anyhow;
 use serde_json::Value;
 
-/// A tool to fetch Pokemon details from the PokeAPI
+/// A tool to fetch Pokémon details from the PokeAPI
 pub struct PokeAPITool;
 
 #[async_trait::async_trait]
@@ -187,11 +187,16 @@ impl Tool for PokemonShowdownTeamGeneratorTool {
 
             mons.push(Pokemon {
                 name,
+                species: None,
                 item,
                 ability,
                 nature,
                 gender,
                 evs,
+                ivs: None,
+                shiny: None,
+                level: None,
+                happiness: None,
                 moves,
             });
         }

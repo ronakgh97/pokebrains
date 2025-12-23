@@ -15,6 +15,12 @@ path = "src/bin/fetcher.rs"
 test = false
 doctest = false
 
+[[bin]]
+name = "Teamdex"
+path = "src/bin/team_generator.rs"
+test = false
+doctest = false
+
 [lib]
 name = "pokebrains"
 path = "src/lib.rs"
