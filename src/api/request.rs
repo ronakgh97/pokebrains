@@ -1,5 +1,6 @@
 use crate::api::dtos::{CompletionRequest, CompletionResponse, CompletionStreamResponse};
 use anyhow::{Context, Result};
+use colored::Colorize;
 use eventsource_stream::Eventsource;
 use futures_util::stream::{Stream, StreamExt};
 use reqwest::Client;
@@ -119,12 +120,12 @@ pub async fn log_typewriter_effect(
         full_text.push_str(&chunk?);
     }
 
-    // Word wrap the text
-    let wrapped_text = word_wrap(&full_text, wrap_len);
+    // Word wrap the text (trim start to avoid leading blank lines)
+    let wrapped_text = word_wrap(full_text.trim_start(), wrap_len);
 
     // Print character by character with typewriter effect
     for c in wrapped_text.chars() {
-        print!("{}", c);
+        print!("{}", c.to_string().bright_white());
         io::stdout().flush()?;
         sleep(Duration::from_millis(10)).await;
     }
@@ -135,6 +136,12 @@ pub async fn log_typewriter_effect(
 fn word_wrap(text: &str, width: usize) -> String {
     let mut result = String::new();
     for line in text.lines() {
+        // Check if line is empty/blank to preserve blank lines
+        if line.trim().is_empty() {
+            result.push('\n');
+            continue;
+        }
+
         let words: Vec<&str> = line.split_whitespace().collect();
         let mut current_line = String::new();
         for word in words {

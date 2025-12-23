@@ -11,14 +11,19 @@ pub struct EVs {
     pub spe: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Pokemon {
     pub name: String,
+    pub species: Option<String>,
     pub item: Option<String>,
     pub ability: Option<String>,
     pub nature: Option<String>,
     pub gender: Option<String>,
     pub evs: EVs,
+    pub ivs: Option<EVs>,
+    pub shiny: Option<bool>,
+    pub level: Option<u8>,
+    pub happiness: Option<u8>,
     pub moves: Vec<String>,
 }
 
@@ -101,6 +106,11 @@ impl Team {
                     gender,
                     evs: EVs::default(),
                     moves: Vec::new(),
+                    species: None,
+                    ivs: None,
+                    shiny: None,
+                    level: None,
+                    happiness: None,
                 });
             }
         }
@@ -173,6 +183,214 @@ impl Team {
     pub async fn deserialize_from_file(path: &str) -> Result<Self> {
         let content = tokio::fs::read_to_string(path).await?;
         Ok(Self::deserialize(&content).await)
+    }
+
+    /// Deserialize a team from Pokémon Showdown packed format (official spec)
+    pub fn deserialize_packed(input: &str) -> Self {
+        let mut pokemon = Vec::new();
+        for mon in input
+            .lines()
+            .flat_map(|l| l.split(']'))
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let fields: Vec<&str> = mon.split('|').collect();
+            let mut f = fields.clone();
+            f.resize(12, "");
+            let name = f[0].to_string();
+            let species = if f[1].is_empty() {
+                None
+            } else {
+                Some(f[1].to_string())
+            };
+            let item = if f[2].is_empty() {
+                None
+            } else {
+                Some(f[2].to_string())
+            };
+            let ability = if f[3].is_empty() {
+                None
+            } else {
+                Some(f[3].to_string())
+            };
+            let moves = if f[4].is_empty() {
+                Vec::new()
+            } else {
+                f[4].split(',').map(|m| m.to_string()).collect()
+            };
+            let nature = if f[5].is_empty() {
+                None
+            } else {
+                Some(f[5].to_string())
+            };
+            let evs = if f[6].is_empty() {
+                EVs::default()
+            } else {
+                let mut vals = f[6]
+                    .split(',')
+                    .map(|v| v.parse::<u16>().unwrap_or(0))
+                    .collect::<Vec<_>>();
+                vals.resize(6, 0);
+                EVs {
+                    hp: vals[0],
+                    atk: vals[1],
+                    def: vals[2],
+                    spa: vals[3],
+                    spd: vals[4],
+                    spe: vals[5],
+                }
+            };
+            let gender = if f[7].is_empty() {
+                None
+            } else {
+                Some(f[7].to_string())
+            };
+            let ivs = if f[8].is_empty() {
+                None
+            } else {
+                let mut vals = f[8]
+                    .split(',')
+                    .map(|v| v.parse::<u16>().unwrap_or(31))
+                    .collect::<Vec<_>>();
+                vals.resize(6, 31);
+                Some(EVs {
+                    hp: vals[0],
+                    atk: vals[1],
+                    def: vals[2],
+                    spa: vals[3],
+                    spd: vals[4],
+                    spe: vals[5],
+                })
+            };
+            let shiny = match f[9] {
+                "S" => Some(true),
+                _ => None,
+            };
+            let level = if f[10].is_empty() {
+                None
+            } else {
+                f[10].parse::<u8>().ok()
+            };
+            let happiness = if f[11].is_empty() {
+                None
+            } else {
+                f[11].split(',').next().and_then(|h| h.parse::<u8>().ok())
+            };
+            pokemon.push(Pokemon {
+                name,
+                species,
+                item,
+                ability,
+                nature,
+                gender,
+                evs,
+                ivs,
+                shiny,
+                level,
+                happiness,
+                moves,
+            });
+        }
+        Team { pokemon }
+    }
+
+    /// Serialize the team to Pokémon Showdown packed format (official spec, one Pokémon per line)
+    pub fn serialize_packed(&self) -> String {
+        self.pokemon
+            .iter()
+            .map(|pkmn| {
+                // Normalize helper
+                let normalize = |s: &str| -> String {
+                    s.chars()
+                        .filter(|c| c.is_alphanumeric())
+                        .collect::<String>()
+                        .to_lowercase()
+                };
+
+                // EVs: blank for 0, keep all 6 values
+                let evs = [
+                    pkmn.evs.hp,
+                    pkmn.evs.atk,
+                    pkmn.evs.def,
+                    pkmn.evs.spa,
+                    pkmn.evs.spd,
+                    pkmn.evs.spe,
+                ]
+                .iter()
+                .map(|v| {
+                    if *v == 0 {
+                        "".to_string()
+                    } else {
+                        v.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+
+                // IVs: same logic
+                let ivs = if let Some(ref iv) = pkmn.ivs {
+                    let arr = [iv.hp, iv.atk, iv.def, iv.spa, iv.spd, iv.spe];
+                    if arr.iter().all(|&v| v == 31) {
+                        "".to_string()
+                    } else {
+                        arr.iter()
+                            .map(|v| {
+                                if *v == 31 {
+                                    "".to_string()
+                                } else {
+                                    v.to_string()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    }
+                } else {
+                    "".to_string()
+                };
+
+                // Compose fields
+                vec![
+                    pkmn.name.clone(), // Nickname (usually empty or same as species)
+                    normalize(&pkmn.species.as_ref().unwrap_or(&pkmn.name)), // Species
+                    pkmn.item.as_ref().map(|i| normalize(i)).unwrap_or_default(),
+                    pkmn.ability
+                        .as_ref()
+                        .map(|a| normalize(a))
+                        .unwrap_or_default(),
+                    pkmn.moves
+                        .iter()
+                        .map(|m| normalize(m))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    pkmn.nature.clone().unwrap_or_default(),
+                    evs,
+                    pkmn.gender.clone().unwrap_or_default(),
+                    ivs,
+                    if pkmn.shiny.unwrap_or(false) {
+                        "S".to_string()
+                    } else {
+                        "".to_string()
+                    },
+                    if pkmn.level.unwrap_or(100) == 100 {
+                        "".to_string()
+                    } else {
+                        pkmn.level.unwrap().to_string()
+                    },
+                    if pkmn.happiness.unwrap_or(255) == 255 {
+                        "".to_string()
+                    } else {
+                        pkmn.happiness.unwrap().to_string()
+                    },
+                ]
+                .join("|")
+            })
+            .collect::<Vec<_>>()
+            .join("]") // Join with ] not \n
+    }
+
+    pub fn deserialize_packed_from_file(path: &str) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(Self::deserialize_packed(&content))
     }
 
     /// Alias for deserialize (backwards compatibility)

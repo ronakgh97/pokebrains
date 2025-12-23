@@ -51,7 +51,7 @@ EVs: 104 HP / 36 Atk / 100 Def / 116 SpA / 72 SpD / 80 Spe
 ";
 
 #[tokio::test]
-async fn deserialize_team_str() {
+async fn deserialize_from_str() {
     let team = Team::deserialize(TEAM).await;
     assert_eq!(team.pokemon.len(), 6);
 
@@ -66,7 +66,7 @@ async fn deserialize_team_str() {
 }
 
 #[tokio::test]
-async fn deserialize_team_from_file() {
+async fn deserialize_from_file() {
     let team = Team::deserialize_from_file("./teams/GEN_VI.txt")
         .await
         .unwrap();
@@ -80,4 +80,11 @@ async fn deserialize_team_from_file() {
     assert_eq!(team.pokemon[5].name, "Gengar");
 
     team.display();
+}
+
+#[tokio::test]
+async fn serialize_packed() {
+    let team = Team::deserialize(TEAM).await;
+    let serialized = team.serialize_packed();
+    println!("{}", serialized);
 }
