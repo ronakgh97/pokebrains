@@ -70,7 +70,7 @@ async fn test_agent_builder_run() -> Result<()> {
     });
 
     let res = prompt(agent, history).await?;
-    assert_eq!(!res.0.is_empty(), true);
+    assert!(!res.0.is_empty());
     println!("Response: {:?}", res);
     Ok(())
 }

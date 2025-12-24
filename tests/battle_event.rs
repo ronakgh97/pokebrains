@@ -236,7 +236,7 @@ fn test_full_battle() {
     }
 
     // Verify turns were recorded
-    assert!(battle.events.len() > 0, "✗ No turns recorded");
+    assert!(!battle.events.is_empty(), "✗ No turns recorded");
     // Note: The battle has 12 numbered turns, but initial switches create turn 0
     assert!(battle.events.len() >= 12, "✗ Should have at least 12 turns");
 
@@ -406,7 +406,7 @@ fn test_partial_battle() {
 
     assert!(battle.battle_started, "✗ Battle should be started");
     assert!(
-        battle.events.len() >= 1,
+        !battle.events.is_empty(),
         "✗ Should have at least 1 turn group"
     );
 
@@ -465,7 +465,7 @@ fn test_critical_hits() {
 
     // Check that critical hit event is handled (may or may not be in events depending on turn tracking)
     assert!(
-        battle.events.len() > 0,
+        !battle.events.is_empty(),
         "✗ Should have at least one event group"
     );
 
@@ -500,7 +500,7 @@ fn test_status_effects() {
 
     // Check that status effect is handled
     assert!(
-        battle.events.len() > 0,
+        !battle.events.is_empty(),
         "✗ Should have at least one event group"
     );
 
