@@ -351,7 +351,7 @@ impl Team {
                 // Compose fields
                 vec![
                     pkmn.name.clone(), // Nickname (usually empty or same as species)
-                    normalize(&pkmn.species.as_ref().unwrap_or(&pkmn.name)), // Species
+                    normalize(pkmn.species.as_ref().unwrap_or(&pkmn.name)), // Species
                     pkmn.item.as_ref().map(|i| normalize(i)).unwrap_or_default(),
                     pkmn.ability
                         .as_ref()

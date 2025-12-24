@@ -39,13 +39,10 @@ impl ShowdownClient {
         let connection_result =
             timeout(Duration::from_secs(self.connection_timeout), connect_future).await;
 
-        self.is_connected = true;
-        println!("{}", "Connection established!".green());
-
         match connection_result {
             Ok(Ok((ws_stream, _response))) => {
                 self.is_connected = true;
-                println!("{}", "Connection established!".green());
+                //println!("{}", "Connection established!".green());
                 Ok(ws_stream)
             }
             Ok(Err(e)) => {

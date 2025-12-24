@@ -39,9 +39,15 @@ async fn main() -> Result<()> {
         .read_line(&mut player)
         .expect("Failed to read input");
 
+    if room_id.trim().is_empty() {
+        println!();
+        print!("Exiting...");
+        std::process::exit(0);
+    }
+
     let mut agent = None;
 
-    let battle_agent = BattleAgent::new("qwen/qwen3-8b", ModelType::Local);
+    let battle_agent = BattleAgent::new("zai-org/glm-4.6v-flash", ModelType::Local);
 
     let mut tool_registry: ToolRegistry = ToolRegistry::new();
     tool_registry.register(PokeAPITool);
@@ -69,14 +75,14 @@ async fn main() -> Result<()> {
         );
         let mut battle_room = ShowdownClient::new("lobby", player, 30);
         battle_room.ai_agent = agent;
-        if let Err(e) = battle_room.connect_to_room().await {
+        if let Err(e) = battle_room.join_room().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     } else {
         println!("{}", format!("Connecting to room: {}", room_id).green());
         let mut battle_room = ShowdownClient::new(room_id, player, 30);
         battle_room.ai_agent = agent;
-        if let Err(e) = battle_room.connect_to_room().await {
+        if let Err(e) = battle_room.join_room().await {
             eprintln!("{}", format!("Connection error: {}", e).red());
         }
     }
