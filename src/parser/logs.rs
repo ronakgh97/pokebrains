@@ -120,38 +120,38 @@ impl BattleEvents {
         self.parse_player_slot(event);
 
         // Then handle player names
-        if let Some(token) = parse_player(event) {
-            if let Token::PLAYER(ref slot, ref username) = token {
-                if slot == "p1" {
-                    self.team[0].player = username.clone();
-                    self.team[0].slot = slot.clone();
-                } else if slot == "p2" {
-                    self.team[1].player = username.clone();
-                    self.team[1].slot = slot.clone();
-                }
+        if let Some(token) = parse_player(event)
+            && let Token::PLAYER(ref slot, ref username) = token
+        {
+            if slot == "p1" {
+                self.team[0].player = username.clone();
+                self.team[0].slot = slot.clone();
+            } else if slot == "p2" {
+                self.team[1].player = username.clone();
+                self.team[1].slot = slot.clone();
+            }
 
-                // Check if we've found both players and can match username
-                if !self.team[0].player.is_empty()
-                    && !self.team[1].player.is_empty()
-                    && self.user_slot.is_none()
-                {
-                    eprintln!(
-                        "WRONG USERNAME: Could not match username '{}' to either '{}' or '{}'",
-                        self.assist, self.team[0].player, self.team[1].player
-                    );
-                    exit(1);
-                }
+            // Check if we've found both players and can match username
+            if !self.team[0].player.is_empty()
+                && !self.team[1].player.is_empty()
+                && self.user_slot.is_none()
+            {
+                eprintln!(
+                    "WRONG USERNAME: Could not match username '{}' to either '{}' or '{}'",
+                    self.assist, self.team[0].player, self.team[1].player
+                );
+                exit(1);
             }
         }
 
-        if let Some(token) = parse_team_setup_by_player_slot(event) {
-            if let Token::TEAM(ref player_id, ref pokemon_list) = token {
-                // Add Pokémon to the correct team based on player_id
-                if player_id == "p1" {
-                    self.team[0].pokemon.extend(pokemon_list.clone());
-                } else if player_id == "p2" {
-                    self.team[1].pokemon.extend(pokemon_list.clone());
-                }
+        if let Some(token) = parse_team_setup_by_player_slot(event)
+            && let Token::TEAM(ref player_id, ref pokemon_list) = token
+        {
+            // Add Pokémon to the correct team based on player_id
+            if player_id == "p1" {
+                self.team[0].pokemon.extend(pokemon_list.clone());
+            } else if player_id == "p2" {
+                self.team[1].pokemon.extend(pokemon_list.clone());
             }
         }
 
@@ -169,15 +169,15 @@ impl BattleEvents {
             self.battle_started = true;
         }
 
-        if let Some(token) = parse_is_team_previewing(event) {
-            if let Token::PREVIEW(true) = token {
-                self.is_previewing_team = true;
-                self.init.push(token);
-                self.init.push(Token::MESSAGE(format!(
-                    "You are assisting: {}",
-                    self.assist
-                )));
-            }
+        if let Some(token) = parse_is_team_previewing(event)
+            && let Token::PREVIEW(true) = token
+        {
+            self.is_previewing_team = true;
+            self.init.push(token);
+            self.init.push(Token::MESSAGE(format!(
+                "You are assisting: {}",
+                self.assist
+            )));
         }
     }
 

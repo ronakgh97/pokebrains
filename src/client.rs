@@ -3,9 +3,10 @@ use crate::parser::logs::BattleEvents;
 use crate::{Colorize, Result, Team};
 use futures_util::{SinkExt, StreamExt};
 use std::time::Duration;
+use tokio::net::TcpStream;
 use tokio::time::timeout;
-use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 pub struct ShowdownClient {
     room_id: String,
@@ -30,53 +31,65 @@ impl ShowdownClient {
         }
     }
 
-    pub async fn connect_to_room(&mut self) -> Result<()> {
+    /// Low-level method to connect to the Showdown server
+    pub async fn connect_to_server(
+        &mut self,
+    ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         let connect_future = connect_async(&self.url);
-        let (ws_stream, _response) =
-            timeout(Duration::from_secs(self.connection_timeout), connect_future).await??;
+        let connection_result =
+            timeout(Duration::from_secs(self.connection_timeout), connect_future).await;
 
         self.is_connected = true;
         println!("{}", "Connection established!".green());
 
-        let (mut write, mut read) = ws_stream.split();
-
-        // Immediately join the room
-        self.join_room(&mut write).await?;
-
-        // Handle incoming messages
-        while let Some(message) = read.next().await {
-            match message {
-                Ok(Message::Text(text)) => {
-                    self.handle_message(&text).await?;
-                }
-                Ok(Message::Close(_)) => {
-                    println!("{}", "Connection closed by server".yellow());
-                    break;
-                }
-                Ok(Message::Ping(data)) => {
-                    write.send(Message::Pong(data)).await?;
-                }
-                Err(e) => {
-                    eprintln!("{}", format!("WebSocket error: {}", e).red());
-                    break;
-                }
-                _ => {}
+        match connection_result {
+            Ok(Ok((ws_stream, _response))) => {
+                self.is_connected = true;
+                println!("{}", "Connection established!".green());
+                Ok(ws_stream)
+            }
+            Ok(Err(e)) => {
+                self.is_connected = false;
+                eprintln!("{}", format!("WebSocket connection error: {}", e).red());
+                Err(e.into())
+            }
+            Err(e) => {
+                self.is_connected = false;
+                eprintln!("{}", format!("Connection timed out: {}", e).red());
+                Err(anyhow::anyhow!("Connection timed out: {}", e))
             }
         }
 
-        self.is_connected = false;
-        Ok(())
+        // // Immediately join the room
+        // self.join_room(&mut write).await?;
+        //
+        // // Handle incoming messages
+        // while let Some(message) = read.next().await {
+        //     match message {
+        //         Ok(Message::Text(text)) => {
+        //             self.handle_message(&text).await?;
+        //         }
+        //         Ok(Message::Close(_)) => {
+        //             println!("{}", "Connection closed by server".yellow());
+        //             break;
+        //         }
+        //         Ok(Message::Ping(data)) => {
+        //             write.send(Message::Pong(data)).await?;
+        //         }
+        //         Err(e) => {
+        //             eprintln!("{}", format!("WebSocket error: {}", e).red());
+        //             break;
+        //         }
+        //         _ => {}
+        //     }
+        // }
+        //
+        // self.is_connected = false;
+        // Ok(())
     }
 
     pub async fn validate_team(&mut self, team_data: &str, format: &str) -> Result<String> {
-        let connect_future = connect_async(&self.url);
-        let (ws_stream, _response) =
-            timeout(Duration::from_secs(self.connection_timeout), connect_future).await??;
-
-        self.is_connected = true;
-        println!("{}", "Connection established!".green());
-
-        let (mut write, mut read) = ws_stream.split();
+        let (mut write, mut read) = self.connect_to_server().await?.split();
 
         let packed_team = Team::deserialize(team_data).await.serialize_packed();
         let utm_cmd = format!("|/utm {}", packed_team);
@@ -131,21 +144,36 @@ impl ShowdownClient {
         }
     }
 
-    async fn join_room(
-        &self,
-        write: &mut futures_util::stream::SplitSink<
-            tokio_tungstenite::WebSocketStream<
-                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-            >,
-            Message,
-        >,
-    ) -> Result<()> {
+    pub async fn join_room(&mut self) -> Result<()> {
+        let (mut write, mut read) = self.connect_to_server().await?.split();
+
         let join_cmd = format!("|/join {}", self.room_id);
         write.send(Message::Text(join_cmd.clone().into())).await?;
+
+        while let Some(message) = read.next().await {
+            match message {
+                Ok(Message::Text(text)) => {
+                    self.handle_message(&text).await?;
+                }
+                Ok(Message::Close(_)) => {
+                    println!("{}", "Connection closed by server".yellow());
+                    break;
+                }
+                Ok(Message::Ping(data)) => {
+                    write.send(Message::Pong(data)).await?;
+                }
+                Err(e) => {
+                    eprintln!("{}", format!("WebSocket error: {}", e).red());
+                    break;
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 
-    pub async fn handle_message(&mut self, text: &str) -> Result<()> {
+    async fn handle_message(&mut self, text: &str) -> Result<()> {
         let mut current_room = String::new();
         for line in text.lines() {
             if line.is_empty() {
@@ -180,7 +208,7 @@ impl ShowdownClient {
                             && self.event_logs.team[1].pokemon.len() == 6
                         {
                             println!();
-                            let _suggestion = agent
+                            agent
                                 .get_initial_suggestions_stream(self.event_logs.clone())
                                 .await?;
                             self.event_logs.is_init_suggestions_generated = true;
@@ -212,7 +240,7 @@ impl ShowdownClient {
                                 || (!was_battle_ended && is_battle_ended));
 
                         if should_generate_suggestions {
-                            let _suggestion = agent
+                            agent
                                 .get_turn_suggestions_stream(self.event_logs.clone())
                                 .await?;
                             // match suggestion {
