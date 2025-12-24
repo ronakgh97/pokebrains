@@ -1,6 +1,6 @@
 use crate::api::tools_registry::Tool;
 use crate::parser::team::{EVs, Pokemon};
-use crate::{PokemonInfo, Team};
+use crate::{PokemonInfo, ShowdownClient, Team};
 use anyhow::anyhow;
 use serde_json::Value;
 
@@ -51,6 +51,7 @@ impl Tool for PokeAPITool {
     }
 }
 
+/// A tool to generate a Pokemon Showdown team text from structured data
 pub struct PokemonShowdownTeamGeneratorTool;
 
 #[async_trait::async_trait]
@@ -204,5 +205,53 @@ impl Tool for PokemonShowdownTeamGeneratorTool {
         let team = Team { pokemon: mons };
         let showdown_text = team.serialize();
         Ok(showdown_text)
+    }
+}
+
+/// A tool to validate a Pokémon Showdown team text
+pub struct TeamValidatorTool;
+
+#[async_trait::async_trait]
+impl Tool for TeamValidatorTool {
+    fn name(&self) -> &str {
+        "validate_pokemon_showdown_team"
+    }
+
+    fn description(&self) -> Value {
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": self.name(),
+                "description": "Validates a given Pokemon Showdown team text for correctness.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "team_text": {
+                            "type": "string",
+                            "description": "The Pokemon Showdown format team text to validate."
+                        }
+                    },
+                    "required": ["team_text"]
+                }
+            }
+        })
+    }
+
+    fn tool_callback(&self) -> bool {
+        true
+    }
+
+    async fn execute_tool(&self, args: Value) -> anyhow::Result<String> {
+        let team_text = args
+            .get("team_text")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("Missing 'team_text' argument"))?;
+
+        let mut client = ShowdownClient::new("test", "test".to_string(), 5);
+
+        match client.validate_team(team_text, "gen5ou").await {
+            Ok(_) => Ok("The team is valid.".to_string()),
+            Err(e) => Ok(format!("The team is invalid: {}", e)),
+        }
     }
 }

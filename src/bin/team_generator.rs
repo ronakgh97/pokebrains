@@ -2,7 +2,7 @@ use colored::Colorize;
 use pokebrains::agents::{AgentBuilder, prompt_with_tools_stream};
 use pokebrains::dtos::{Message, Role};
 use pokebrains::request::log_typewriter_effect;
-use pokebrains::tools::{PokeAPITool, PokemonShowdownTeamGeneratorTool};
+use pokebrains::tools::{PokeAPITool, PokemonShowdownTeamGeneratorTool, TeamValidatorTool};
 use pokebrains::tools_registry::ToolRegistry;
 use std::sync::Arc;
 
@@ -11,10 +11,11 @@ async fn main() -> anyhow::Result<()> {
     let mut tool_registry = ToolRegistry::new();
     tool_registry.register(PokeAPITool);
     tool_registry.register(PokemonShowdownTeamGeneratorTool);
+    tool_registry.register(TeamValidatorTool);
 
     let agent = AgentBuilder::new()
         .model("qwen-v1")
-        .system_prompt("You are Pokemon Master, which helps users build competitive Pokemon teams(Pokemon Showdown format) using tools at your disposal.")
+        .system_prompt("You are Pokemon Master, who helps users build competitive valid Pokemon teams (Pokemon Showdown format) using tools at your disposal.")
         .url("http://localhost:1234/v1")
         .api_key("local")
         .tool_registry(Arc::new(tool_registry))
@@ -48,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
             name: None,
         });
 
-        println!("{}", "Generating team...".magenta());
+        println!("{}", "Generating team...\n".magenta());
 
         let stream_response = prompt_with_tools_stream(agent.clone(), chat_history.clone()).await?;
 
