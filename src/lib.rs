@@ -12,4 +12,4 @@ pub use client::ShowdownClient;
 pub use colored::Colorize;
 pub use parser::logs::{BattleEvents, Token};
 pub use parser::team::Team;
-pub use pokeapi::{PokemonInfo, display, fetch_pokemon_info};
+pub use pokeapi::{PokemonInfo, fetch_pokemon_info, pretty_display};
