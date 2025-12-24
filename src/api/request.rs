@@ -56,7 +56,7 @@ pub async fn send_request(
 
     let answer = completion
         .choices
-        .get(0)
+        .first()
         .ok_or_else(|| anyhow::anyhow!("No choices in response"))?
         .message
         .content
@@ -93,7 +93,7 @@ pub async fn send_request_stream(
                 serde_json::from_str(&event.data).context("Failed to parse JSON")?;
 
             // Extract content safely
-            let content = parsed.choices.get(0).and_then(|c| c.delta.content.clone());
+            let content = parsed.choices.first().and_then(|c| c.delta.content.clone());
 
             Ok(content)
         })

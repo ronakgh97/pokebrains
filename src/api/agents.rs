@@ -144,7 +144,7 @@ pub async fn prompt(
 
     let get_content = &response
         .choices
-        .get(0)
+        .first()
         .ok_or_else(|| anyhow::anyhow!("No choices in response"))?
         .message
         .content
@@ -153,7 +153,7 @@ pub async fn prompt(
 
     let tool_call = &response
         .choices
-        .get(0)
+        .first()
         .ok_or_else(|| anyhow::anyhow!("No choices in response"))?
         .message
         .tool_calls;
@@ -380,7 +380,7 @@ async fn test_agent_tool() -> Result<()> {
     println!("{:#?}", &response);
     println!();
     println!("{:#?}", history.clone());
-    assert_eq!(response.trim().is_empty(), false);
+    assert!(!response.trim().is_empty());
 
     // if let Some(calls) = tools_list {
     //     for call in calls {
@@ -448,7 +448,7 @@ async fn test_agent_tool_stream() -> Result<()> {
     println!("{:#?}", &string_response);
     println!();
     println!("{:#?}", history.clone());
-    assert_eq!(string_response.trim().is_empty(), false);
+    assert!(!string_response.trim().is_empty());
 
     // if let Some(calls) = tools_list {
     //     for call in calls {

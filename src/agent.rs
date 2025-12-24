@@ -79,10 +79,7 @@ impl BattleAgent {
         let mut prompt = events
             .init
             .iter()
-            .filter(|t| match t {
-                crate::parser::logs::Token::PREVIEW(s) if *s => false,
-                _ => true,
-            })
+            .filter(|t| matches!(t, crate::parser::logs::Token::PREVIEW(s) if *s))
             .map(|t| t.to_string())
             .collect::<Vec<_>>()
             .join("\n");
@@ -112,10 +109,7 @@ impl BattleAgent {
         let mut prompt = events
             .init
             .iter()
-            .filter(|t| match t {
-                crate::parser::logs::Token::PREVIEW(s) if *s => false,
-                _ => true,
-            })
+            .filter(|t| matches!(t, crate::parser::logs::Token::PREVIEW(s) if *s))
             .map(|t| t.to_string())
             .collect::<Vec<_>>()
             .join("\n");
