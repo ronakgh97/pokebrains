@@ -12,6 +12,19 @@ pub struct PokemonInfo {
     pub abilities: Vec<PokemonAbilitySlot>,
     pub moves: Vec<PokemonMoveSlot>,
     pub stats: Vec<PokemonStat>,
+    pub species: NamedAPIResource,
+    #[serde(rename = "past_abilities")]
+    pub r#gen: Vec<PastAbilityGen>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PokemonSpecies {
+    pub generation: NamedAPIResource,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PastAbilityGen {
+    pub generation: NamedAPIResource,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +52,7 @@ pub struct AbilityEffectEntry {
     #[allow(dead_code)]
     effect: String,
     pub short_effect: String,
-    pub language: NamedAPIResource,
+    language: NamedAPIResource,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,12 +69,20 @@ pub struct PokemonStat {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NamedAPIResource {
     pub name: String,
+    url: String,
 }
 
 impl PokemonInfo {
     pub fn to_readable_form(&self) -> String {
         let mut s = String::new();
         s.push_str(&format!("Pokemon: {}\n", self.name.to_uppercase()));
+        // Generation
+        let generation_name = self
+            .r#gen
+            .first()
+            .map(|g| g.generation.name.to_uppercase())
+            .unwrap_or_else(|| "Unknown".to_string());
+        s.push_str(&format!("Generation: {}\n", generation_name));
         // Types
         let types: Vec<String> = self.types.iter().map(|t| t.r#type.name.clone()).collect();
         s.push_str(&format!("Types:   {}\n", types.join(", ")));
@@ -114,6 +135,20 @@ pub async fn fetch_pokemon_info(pokemon_name: &str) -> Result<PokemonInfo> {
     if response.status().is_success() {
         let mut pokemon: PokemonInfo = response.json().await?;
 
+        // Fetch generation from species if past_abilities is empty
+        if pokemon.r#gen.is_empty() {
+            if let Ok(species_resp) = reqwest::get(&pokemon.species.url).await {
+                if species_resp.status().is_success() {
+                    if let Ok(species_data) = species_resp.json::<PokemonSpecies>().await {
+                        // Create a PastAbilityGen from species generation
+                        pokemon.r#gen.push(PastAbilityGen {
+                            generation: species_data.generation,
+                        });
+                    }
+                }
+            }
+        }
+
         // Fetch ability details for each ability
         for ability_slot in &mut pokemon.abilities {
             let ability_url = format!(
@@ -145,7 +180,7 @@ pub async fn fetch_pokemon_info(pokemon_name: &str) -> Result<PokemonInfo> {
     }
 }
 
-pub async fn display(pokemon_name: &str) -> Result<()> {
+pub async fn pretty_display(pokemon_name: &str) -> Result<()> {
     let data = fetch_pokemon_info(pokemon_name).await;
     match data {
         Ok(info) => {
@@ -154,6 +189,15 @@ pub async fn display(pokemon_name: &str) -> Result<()> {
                 "{} {}",
                 "Pokemon:".cyan().bold(),
                 info.name.to_uppercase().bright_white().bold()
+            );
+
+            println!(
+                "{} {}",
+                "Generation:".cyan().bold(),
+                info.r#gen
+                    .first()
+                    .map(|g| g.generation.name.to_uppercase().yellow().to_string())
+                    .unwrap_or_else(|| "Unknown".yellow().to_string())
             );
 
             print!("{}", "Types:   ".cyan().bold());
@@ -188,14 +232,14 @@ pub async fn display(pokemon_name: &str) -> Result<()> {
                 let hidden_text = if ability.is_hidden {
                     "(Hidden)".red().italic()
                 } else {
-                    "        ".normal()
+                    "".normal()
                 };
                 if let Some(effect) = &ability.effect {
                     println!(
-                        " {:>15} {} - {}",
+                        " {:>15} - {} {}",
                         ability.ability.name.white(),
-                        hidden_text,
-                        effect.bright_blue()
+                        effect.bright_blue(),
+                        hidden_text
                     );
                 } else {
                     println!("  {:>15} {}", ability.ability.name.white(), hidden_text);
