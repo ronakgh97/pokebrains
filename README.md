@@ -184,8 +184,7 @@ The team has several issues due to **Gen 5 compatibility** (Pokémon Showdown us
                                                                                                                                                                    
 ---                                                                                                                                                                
                                                                                                                                                                    
-### ✅ Revised Team (Gen 5 Compatible)                                                                                                                              
-```plaintext                                                                                                                                                       
+### ✅ Revised Team (Gen 5 Compatible)                                                                                                                                                                                                                                                                            
 Charizardite X @ Choice Scarf                                                                                                                                      
 Ability: Blaze                                                                                                                                                     
 EVs: 252 Atk / 4 SpA / 252 Spe                                                                                                                                     
@@ -239,14 +238,15 @@ Modest Nature
 - Rock Slide                                                                                                                                                       
 - Stealth Rock                                                                                                                                                     
 - Rest                                                                                                                                                             
-```                                                                                                                                                                
 
 This team avoids banned moves, invalid abilities, and Gen 5-incompatible Pokémon. Let me know if you want adjustments
 for specific metagames (e.g.,                
 UU, RU)!
 
-```
+Enter your team requirements: 
+↪
 
+```
 
 ## NOTE!!
 
