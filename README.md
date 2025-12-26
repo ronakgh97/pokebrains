@@ -11,7 +11,7 @@ real-time.
 - Real-time battle monitoring
 - Basic event tracking (no AI decision-making yet)
 
-## Parse Demo
+## Pokebrains Demo
 
 ```shell
     
@@ -66,6 +66,187 @@ Action: Ice Beam
 Reason: Ice Beam (Ice) is super effective against Dragon types like Latios, and Gengar's Poison typing grants it immunity to Ground moves, making it a
 strong counter.
 ```
+
+## Teamdex Demo
+
+```shell
+    ███        ▄████████    ▄████████   ▄▄▄▄███▄▄▄▄        ████████▄     ▄████████ ▀████    ▐████▀
+▀█████████▄   ███    ███   ███    ███ ▄██▀▀▀███▀▀▀██▄      ███   ▀███   ███    ███   ███▌   ████▀
+   ▀███▀▀██   ███    █▀    ███    ███ ███   ███   ███      ███    ███   ███    █▀     ███  ▐███
+    ███   ▀  ▄███▄▄▄       ███    ███ ███   ███   ███      ███    ███  ▄███▄▄▄        ▀███▄███▀
+    ███     ▀▀███▀▀▀     ▀███████████ ███   ███   ███      ███    ███ ▀▀███▀▀▀        ████▀██▄
+    ███       ███    █▄    ███    ███ ███   ███   ███      ███    ███   ███    █▄    ▐███  ▀███
+    ███       ███    ███   ███    ███ ███   ███   ███      ███   ▄███   ███    ███  ▄███     ███▄
+   ▄████▀     ██████████   ███    █▀   ▀█   ███   █▀       ████████▀    ██████████ ████       ███▄
+
+    
+
+Enter your team requirements: 
+↪ Gen 6, include Mega charizard X
+
+Generating team...
+
+Charizard-Mega-X @ Choice Scarf
+Ability: Mega Launcher
+EVs: 252 Atk / 4 SpA / 252 Spe
+Jolly Nature
+- Dragon Ascent
+- Fire Blast
+- Thunderbolt
+- Swords Dance
+
+Tapu Koko @ Life Orb
+Ability: Starmask
+EVs: 252 SpA / 252 SpD
+Modest Nature
+- Ice Beam
+- Shadow Ball
+- Psychic
+- Trick
+
+Ferrothorn @ Leftovers                                                                                                                                             
+Ability: Iron Barbs                                                                                                                                                
+EVs: 252 HP / 252 Def / 4 SpD                                                                                                                                      
+Relaxed Nature                                                                                                                                                     
+- Leech Seed                                                                                                                                                       
+- Spiky Shield                                                                                                                                                     
+- Sludge Bomb                                                                                                                                                      
+- Swords Dance                                                                                                                                                     
+                                                                                                                                                                   
+Togekiss @ Choice Band                                                                                                                                             
+Ability: Serene Grace                                                                                                                                              
+EVs: 252 HP / 252 Atk / 4 Spe                                                                                                                                      
+Adamant Nature                                                                                                                                                     
+- Bullet Seed                                                                                                                                                      
+- Close Combat                                                                                                                                                     
+- Swagger                                                                                                                                                          
+- Play Rough                                                                                                                                                       
+                                                                                                                                                                   
+Sylveon @ Leftovers                                                                                                                                                
+Ability: Pixilate                                                                                                                                                  
+EVs: 252 SpA / 252 Spe                                                                                                                                             
+Timid Nature                                                                                                                                                       
+- Moonblast                                                                                                                                                        
+- Dazzling Gleam                                                                                                                                                   
+- Ice Beam                                                                                                                                                         
+- Psychic                                                                                                                                                          
+                                                                                                                                                                   
+Gligar @ Life Orb                                                                                                                                                  
+Ability: Sand Force                                                                                                                                                
+EVs: 252 HP / 4 Def / 252 SpD                                                                                                                                      
+Sassy Nature                                                                                                                                                       
+- Swords Dance                                                                                                                                                     
+- Earthquake                                                                                                                                                       
+- Rock Slide                                                                                                                                                       
+- Slack Off                                                                                                                                                        
+
+Enter your team requirements: 
+↪ Is the team valid?
+
+Generating team...
+                                                                                                                                                                   
+The team has several issues due to **Gen 5 compatibility** (Pokémon Showdown uses Gen 8 by default). Here's how to fix it:
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### 🔥 **Charizard-Mega-X**                                                                                                                                        
+- **Item**: Must be *Charizardite X* (not Choice Scarf)                                                                                                            
+- **Ability**: Cannot use *Mega Launcher* (Gen 5 doesn't have this ability)                                                                                        
+- **Move**: *Dragon Ascent* is Gen 6+; replace with **Outrage** or **Dragon Claw**                                                                                 
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### 🌟 **Tapu Koko**                                                                                                                                               
+- **Invalid in Gen 5**: Replace with a Gen 5 Pokémon like **Alola Muk** (use *Starmask* ability if needed)                                                         
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### ⚡ **Ferrothorn**                                                                                                                                               
+- **Spiky Shield** is Gen 6+; replace with **Sludge Bomb** or **Leech Seed**                                                                                       
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### 🐾 **Togekiss**                                                                                                                                                
+- **Swagger** is banned in most metagames                                                                                                                          
+- **Bullet Seed/Play Rough** are Gen 4–5 moves, but *Bullet Seed* is banned in many formats                                                                        
+- Consider replacing with **Alakazam** or **Blissey**                                                                                                              
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### 🌙 **Sylveon**                                                                                                                                                 
+- **Pixilate** and **Dazzling Gleam** are Gen 7+; replace with **Alomomola** (for healing) or **Crobat** (for speed)                                               
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### ⛰️ **Gligar**                                                                                                                                                  
+- **Sand Force** is Gen 7+; replace with *Sand Veil* or *Sturdy*                                                                                                   
+- **Slack Off** is Gen 6+; replace with **Rest** or **Sleep Talk**                                                                                                 
+                                                                                                                                                                   
+---                                                                                                                                                                
+                                                                                                                                                                   
+### ✅ Revised Team (Gen 5 Compatible)                                                                                                                              
+```plaintext                                                                                                                                                       
+Charizardite X @ Choice Scarf                                                                                                                                      
+Ability: Blaze                                                                                                                                                     
+EVs: 252 Atk / 4 SpA / 252 Spe                                                                                                                                     
+Jolly Nature                                                                                                                                                       
+- Outrage                                                                                                                                                          
+- Fire Blast                                                                                                                                                       
+- Thunderbolt                                                                                                                                                      
+- Swords Dance                                                                                                                                                     
+                                                                                                                                                                   
+Alola Muk @ Life Orb                                                                                                                                               
+Ability: Starmask                                                                                                                                                  
+EVs: 252 SpA / 252 SpD                                                                                                                                             
+Modest Nature                                                                                                                                                      
+- Ice Beam                                                                                                                                                         
+- Shadow Ball                                                                                                                                                      
+- Psychic                                                                                                                                                          
+- Trick                                                                                                                                                            
+                                                                                                                                                                   
+Ferrothorn @ Leftovers                                                                                                                                             
+Ability: Iron Barbs                                                                                                                                                
+EVs: 252 HP / 252 Def / 4 SpD                                                                                                                                      
+Relaxed Nature                                                                                                                                                     
+- Leech Seed                                                                                                                                                       
+- Sludge Bomb                                                                                                                                                      
+- Earthquake                                                                                                                                                       
+- Swords Dance                                                                                                                                                     
+                                                                                                                                                                   
+Alakazam @ Choice Band                                                                                                                                             
+Ability: Magic Guard                                                                                                                                               
+EVs: 252 SpA / 252 Spe                                                                                                                                             
+Timid Nature                                                                                                                                                       
+- Psychic                                                                                                                                                          
+- Shadow Ball                                                                                                                                                      
+- Thunderbolt                                                                                                                                                      
+- Rest                                                                                                                                                             
+                                                                                                                                                                   
+Crobat @ Choice Scarf                                                                                                                                              
+Ability: Infiltrator                                                                                                                                               
+EVs: 252 Spe / 4 HP / 252 SpD                                                                                                                                      
+Timid Nature                                                                                                                                                       
+- Air Slash                                                                                                                                                        
+- U-turn                                                                                                                                                           
+- Nasty Plot                                                                                                                                                       
+- Sucker Punch                                                                                                                                                     
+                                                                                                                                                                   
+Gligar @ Focus Sash                                                                                                                                                
+Ability: Sand Veil                                                                                                                                                 
+EVs: 252 Def / 4 HP / 252 Spe                                                                                                                                      
+Modest Nature                                                                                                                                                      
+- Earthquake                                                                                                                                                       
+- Rock Slide                                                                                                                                                       
+- Stealth Rock                                                                                                                                                     
+- Rest                                                                                                                                                             
+```                                                                                                                                                                
+
+This team avoids banned moves, invalid abilities, and Gen 5-incompatible Pokémon. Let me know if you want adjustments
+for specific metagames (e.g.,                
+UU, RU)!
+
+```
+
 
 ## NOTE!!
 

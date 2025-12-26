@@ -14,7 +14,7 @@ async fn main() -> anyhow::Result<()> {
     tool_registry.register(TeamValidatorTool);
 
     let agent = AgentBuilder::new()
-        .model("qwen-v1")
+        .model("qwen/qwen3-8b")
         .system_prompt("You are Pokemon Master, who helps users build competitive valid Pokemon teams (Pokemon Showdown format) using tools at your disposal.")
         .url("http://localhost:1234/v1")
         .api_key("local")
