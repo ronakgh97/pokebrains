@@ -8,27 +8,30 @@ use crate::dtos::ToolCall;
 use crate::request::send_completion_request;
 use anyhow::Result;
 use futures_util::Stream;
+use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Agent {
     pub model: String,
     pub url: String,
     pub api_key: String,
     pub system_prompt: String,
     pub temperature: f32,
+    #[serde(skip_serializing, skip_deserializing, default)]
     pub tool_registry: Option<Arc<ToolRegistry>>,
     pub top_p: f32,
 }
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AgentBuilder {
     pub model: Option<String>,
     pub url: String,
     pub api_key: String,
     pub system_prompt: String,
     pub temperature: f32,
+    #[serde(skip_serializing, skip_deserializing, default)]
     pub tool_registry: Option<Arc<ToolRegistry>>,
     pub top_p: f32,
 }
@@ -51,6 +54,12 @@ impl Default for AgentBuilder {
 impl AgentBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn load_from_toml(path: &str) -> Result<Self> {
+        let config_str = std::fs::read_to_string(path)?;
+        let agent_builder = toml::from_str::<AgentBuilder>(&config_str)?;
+        Ok(agent_builder)
     }
 
     pub fn model(mut self, model: impl Into<String>) -> Self {
@@ -458,6 +467,24 @@ async fn test_agent_tool_stream() -> Result<()> {
     //         dbg!(&result);
     //     }
     // }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_load_from_config() -> Result<()> {
+    let agent_builder = AgentBuilder::load_from_toml("agent_config.toml")?;
+    let agent = agent_builder.build()?;
+
+    assert_eq!(agent.model, "qwen/qwen3-8b");
+    assert_eq!(agent.url, "http://localhost:1234/v1");
+    assert_eq!(agent.api_key, "local");
+    assert_eq!(
+        agent.system_prompt,
+        "You are a helpful assistant.\n Strict follow user instructions"
+    );
+    assert_eq!(agent.temperature, 0.5);
+    assert_eq!(agent.top_p, 0.9);
 
     Ok(())
 }

@@ -1,0 +1,6 @@
+url = "http://localhost:1234/v1"
+api_key = "local"
+model = "qwen/qwen3-8b"
+temperature = 0.5
+system_prompt = "You are a helpful assistant.\n Strict follow user instructions"
+top_p = 0.9
