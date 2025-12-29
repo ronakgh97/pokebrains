@@ -62,6 +62,23 @@ impl AgentBuilder {
         Ok(agent_builder)
     }
 
+    pub fn to_toml_string(&self) -> Result<String> {
+        let toml_str = toml::to_string_pretty(self)?;
+        Ok(toml_str)
+    }
+
+    pub fn convert_to_builder(agent: &Agent) -> AgentBuilder {
+        AgentBuilder {
+            model: Some(agent.model.clone()),
+            url: agent.url.clone(),
+            api_key: agent.api_key.clone(),
+            system_prompt: agent.system_prompt.clone(),
+            temperature: agent.temperature,
+            tool_registry: agent.tool_registry.clone(),
+            top_p: agent.top_p,
+        }
+    }
+
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
         self
@@ -472,9 +489,9 @@ async fn test_agent_tool_stream() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_load_from_config() -> Result<()> {
+async fn test_agent_config() -> Result<()> {
     let agent_builder = AgentBuilder::load_from_toml("agent_config.toml")?;
-    let agent = agent_builder.build()?;
+    let mut agent = agent_builder.clone().build()?;
 
     assert_eq!(agent.model, "qwen/qwen3-8b");
     assert_eq!(agent.url, "http://localhost:1234/v1");
@@ -485,6 +502,19 @@ async fn test_load_from_config() -> Result<()> {
     );
     assert_eq!(agent.temperature, 0.5);
     assert_eq!(agent.top_p, 0.9);
+
+    // Test overriding/append a field
+    agent.model = "test-model".to_string();
+    agent.system_prompt = agent.system_prompt.to_string() + "\ntest-system-prompt";
+    assert_eq!(
+        agent.system_prompt,
+        "You are a helpful assistant.\n Strict follow user instructions\ntest-system-prompt"
+    );
+
+    let updated_agent_builder = AgentBuilder::convert_to_builder(&agent);
+
+    let updated_toml = updated_agent_builder.to_toml_string()?;
+    println!("Updated TOML:\n{}", updated_toml);
 
     Ok(())
 }
