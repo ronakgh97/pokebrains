@@ -64,6 +64,7 @@ async fn test_agent_builder_run() -> Result<()> {
     history.push(Message {
         role: USER,
         content: Option::from(user_prompt.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -91,6 +92,7 @@ async fn test_agent_builder_run_stream() -> Result<()> {
     history.push(Message {
         role: USER,
         content: Option::from(user_prompt.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,

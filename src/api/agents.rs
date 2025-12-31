@@ -6,7 +6,7 @@ use crate::api::tools_registry::ToolRegistry;
 use crate::dtos::Role::{ASSISTANT, SYSTEM};
 use crate::dtos::ToolCall;
 use crate::request::send_completion_request;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use futures_util::Stream;
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
@@ -135,12 +135,14 @@ pub async fn prompt(
     history: Vec<Message>,
 ) -> Result<(String, Option<Vec<ToolCall>>)> {
     // Add system prompt to the beginning of history for non-repetitive context
+
     let mut history = history;
     history.insert(
         0,
         Message {
             role: SYSTEM,
-            content: Option::from(agent.clone().system_prompt),
+            content: Some(agent.clone().system_prompt),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -180,7 +182,7 @@ pub async fn prompt(
     let tool_call = &response
         .choices
         .first()
-        .ok_or_else(|| anyhow::anyhow!("No choices in response"))?
+        .ok_or_else(|| anyhow!("No choices in response"))?
         .message
         .tool_calls;
 
@@ -192,13 +194,14 @@ pub async fn prompt_stream(
     history: Vec<Message>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
     // Add system prompt to the beginning of history for non-repetitive context
-    let mut history = history;
 
+    let mut history = history;
     history.insert(
         0,
         Message {
             role: SYSTEM,
-            content: Option::from(agent.clone().system_prompt),
+            content: Some(agent.clone().system_prompt),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -241,7 +244,9 @@ pub async fn prompt_with_tools(agent: Agent, mut history: Vec<Message>) -> Resul
         None => return Err(anyhow::anyhow!("No tool registry")),
     };
 
-    loop {
+    const MAX_ITERATIONS: usize = 15;
+
+    for _iteration in 0..MAX_ITERATIONS {
         let (response, tools_list) = prompt(agent.clone(), history.clone()).await?;
 
         // No tool calls? STOP!!
@@ -255,6 +260,7 @@ pub async fn prompt_with_tools(agent: Agent, mut history: Vec<Message>) -> Resul
         history.push(Message {
             role: ASSISTANT,
             content: Some(response.clone()),
+            multi_content: None,
             tool_calls: Some(calls.clone()),
             tool_call_id: None,
             name: None,
@@ -277,6 +283,7 @@ pub async fn prompt_with_tools(agent: Agent, mut history: Vec<Message>) -> Resul
             history.push(Message {
                 role: crate::dtos::Role::TOOL,
                 content: Some(result),
+                multi_content: None,
                 tool_calls: None,
                 tool_call_id: Some(call.id.clone()),
                 name: Some(tool_name.clone()),
@@ -290,6 +297,11 @@ pub async fn prompt_with_tools(agent: Agent, mut history: Vec<Message>) -> Resul
             return Ok(response);
         }
     }
+
+    Err(anyhow::anyhow!(
+        "Max iterations ({}) reached",
+        MAX_ITERATIONS
+    ))
 }
 
 /// High-level streaming with automatic tool execution.
@@ -306,7 +318,7 @@ pub async fn prompt_with_tools_stream(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("No tool registry"))?;
 
-    const MAX_ITERATIONS: usize = 10;
+    const MAX_ITERATIONS: usize = 15;
 
     for _iteration in 0..MAX_ITERATIONS {
         let (response, tools_list) = prompt(agent.clone(), history.clone()).await?;
@@ -321,6 +333,7 @@ pub async fn prompt_with_tools_stream(
         history.push(Message {
             role: ASSISTANT,
             content: Some(response.clone()),
+            multi_content: None,
             tool_calls: Some(calls.clone()),
             tool_call_id: None,
             name: None,
@@ -344,6 +357,7 @@ pub async fn prompt_with_tools_stream(
             history.push(Message {
                 role: crate::dtos::Role::TOOL,
                 content: Some(result),
+                multi_content: None,
                 tool_calls: None,
                 tool_call_id: Some(call.id.clone()),
                 name: Some(tool_name.clone()),
@@ -387,6 +401,7 @@ async fn test_agent_tool() -> Result<()> {
     history.push(Message {
         role: USER,
         content: Option::from(user_prompt.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -397,6 +412,7 @@ async fn test_agent_tool() -> Result<()> {
     history.push(Message {
         role: ASSISTANT,
         content: Option::from(response.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -445,6 +461,7 @@ async fn test_agent_tool_stream() -> Result<()> {
     history.push(Message {
         role: USER,
         content: Option::from(user_prompt.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -457,6 +474,7 @@ async fn test_agent_tool_stream() -> Result<()> {
     history.push(Message {
         role: ASSISTANT,
         content: Option::from(string_response.trim().to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -465,6 +483,7 @@ async fn test_agent_tool_stream() -> Result<()> {
     history.push(Message {
         role: ASSISTANT,
         content: Option::from(string_response.to_string()),
+        multi_content: None,
         tool_calls: None,
         tool_call_id: None,
         name: None,
@@ -505,16 +524,78 @@ async fn test_agent_config() -> Result<()> {
 
     // Test overriding/append a field
     agent.model = "test-model".to_string();
-    agent.system_prompt = agent.system_prompt.to_string() + "\ntest-system-prompt";
+    agent.system_prompt = agent.system_prompt.to_string() + "\nModified system prompt";
     assert_eq!(
         agent.system_prompt,
-        "You are a helpful assistant.\n Strict follow user instructions\ntest-system-prompt"
+        "You are a helpful assistant.\n Strict follow user instructions\nModified system prompt"
     );
 
     let updated_agent_builder = AgentBuilder::convert_to_builder(&agent);
 
     let updated_toml = updated_agent_builder.to_toml_string()?;
     println!("Updated TOML:\n{}", updated_toml);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_agent_image_input() -> Result<()> {
+    use crate::api::dtos::{ImageUrl, MultiContent};
+    use crate::api::request::log_typewriter_effect;
+    use crate::dtos::Role;
+    use base64::prelude::*;
+
+    let image_data = std::fs::read("src/api/ai_test_0.jpg")?;
+    let base64_image = BASE64_STANDARD.encode(&image_data);
+    let data_url = format!("data:image/png;base64,{}", base64_image);
+
+    let user_prompt = Message {
+        role: Role::USER,
+        content: None,
+        multi_content: Some(vec![
+            MultiContent {
+                r#type: "text".to_string(),
+                text: Some("Explain this image".to_string()),
+                image_url: None,
+            },
+            MultiContent {
+                r#type: "image_url".to_string(),
+                text: None,
+                image_url: Some(ImageUrl { url: data_url }),
+            },
+        ]),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
+    };
+
+    let mut history = vec![user_prompt.clone()];
+
+    let agent = AgentBuilder::new()
+        .model("qwen/qwen3-vl-8b")
+        .url("http://localhost:1234/v1")
+        .api_key("local")
+        .temperature(0.5)
+        .build()?;
+
+    let response_stream = prompt_stream(agent, history.clone()).await?;
+    let response_text = log_typewriter_effect(50, response_stream).await?;
+
+    history.push(Message {
+        role: Role::ASSISTANT,
+        content: Some(response_text.clone()),
+        multi_content: None,
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
+    });
+    println!();
+    println!("Request: {:?}", serde_json::to_string_pretty(&user_prompt));
+    println!();
+    println!("Response: {}", response_text);
+    println!();
+    println!("History: {:?}", serde_json::to_string_pretty(&history));
+    assert!(!response_text.trim().is_empty());
 
     Ok(())
 }

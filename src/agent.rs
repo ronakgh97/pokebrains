@@ -192,7 +192,8 @@ impl BattleAgent {
 
         self.history.push(Message {
             role: Role::USER,
-            content: Option::from(user_prompt.clone()),
+            content: Some(user_prompt.clone().into()),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -203,7 +204,8 @@ impl BattleAgent {
                 Ok(response) => {
                     self.history.push(Message {
                         role: Role::ASSISTANT,
-                        content: Option::from(response.trim().to_string()),
+                        content: Some(response.trim().to_string().into()),
+                        multi_content: None,
                         tool_calls: None,
                         tool_call_id: None,
                         name: None,
@@ -225,7 +227,8 @@ impl BattleAgent {
 
         self.history.push(Message {
             role: Role::USER,
-            content: Option::from(user_prompt.clone()),
+            content: Some(user_prompt.clone().into()),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -240,7 +243,8 @@ impl BattleAgent {
             // Save to history
             self.history.push(Message {
                 role: Role::ASSISTANT,
-                content: Some(response.trim().to_string()),
+                content: Some(response.trim().to_string().into()),
+                multi_content: None,
                 tool_calls: None,
                 tool_call_id: None,
                 name: None,

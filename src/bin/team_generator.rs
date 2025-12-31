@@ -44,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
         chat_history.push(Message {
             role: Role::USER,
             content: Some(user_input.to_string()),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
@@ -57,6 +58,7 @@ async fn main() -> anyhow::Result<()> {
         chat_history.push(Message {
             role: Role::ASSISTANT,
             content: Some(stream_string),
+            multi_content: None,
             tool_calls: None,
             tool_call_id: None,
             name: None,
