@@ -1,5 +1,5 @@
+use forge::api::tools_registry::ToolRegistry;
 use pokebrains::tools::PokeAPITool;
-use pokebrains::tools_registry::ToolRegistry;
 use pokebrains::{BattleAgent, Colorize, ModelType, Result, ShowdownClient};
 use std::io::Write;
 use std::io::{stdin, stdout};

@@ -1,7 +1,7 @@
-use crate::api::tools_registry::Tool;
 use crate::parser::team::{EVs, Pokemon};
 use crate::{PokemonInfo, ShowdownClient, Team};
 use anyhow::anyhow;
+use forge::api::tools_registry::Tool;
 use serde_json::Value;
 
 /// A tool to fetch Pokémon details from the PokeAPI

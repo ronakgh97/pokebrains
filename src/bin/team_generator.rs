@@ -1,9 +1,10 @@
 use colored::Colorize;
-use pokebrains::agents::{AgentBuilder, prompt_with_tools_stream};
-use pokebrains::dtos::{Message, Role};
-use pokebrains::request::log_typewriter_effect;
+use forge::api::agents::{AgentBuilder, prompt_with_tools_stream};
+use forge::api::dtos::Message;
+use forge::api::dtos::Role::{ASSISTANT, USER};
+use forge::api::request::log_typewriter_effect;
+use forge::api::tools_registry::ToolRegistry;
 use pokebrains::tools::{PokeAPITool, PokemonShowdownTeamGeneratorTool, TeamValidatorTool};
-use pokebrains::tools_registry::ToolRegistry;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -42,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
         }
 
         chat_history.push(Message {
-            role: Role::USER,
+            role: USER,
             content: Some(user_input.to_string()),
             multi_content: None,
             tool_calls: None,
@@ -52,11 +53,12 @@ async fn main() -> anyhow::Result<()> {
 
         println!("{}", "Generating team...\n".magenta());
 
-        let stream_response = prompt_with_tools_stream(agent.clone(), chat_history.clone()).await?;
+        let stream_response =
+            prompt_with_tools_stream(agent.clone(), chat_history.clone(), 10).await?;
 
         let stream_string = log_typewriter_effect(150, stream_response).await?;
         chat_history.push(Message {
-            role: Role::ASSISTANT,
+            role: ASSISTANT,
             content: Some(stream_string),
             multi_content: None,
             tool_calls: None,

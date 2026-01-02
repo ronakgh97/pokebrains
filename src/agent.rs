@@ -1,13 +1,12 @@
+use crate::BattleEvents;
 #[allow(unused)]
-use crate::agents::{
-    Agent, AgentBuilder, prompt, prompt_stream, prompt_with_tools, prompt_with_tools_stream,
-};
-use crate::dtos::{Message, Role};
-use crate::parser::logs::BattleEvents;
-use crate::request::log_typewriter_effect;
-use crate::tools_registry::ToolRegistry;
 use anyhow::Result;
 use colored::Colorize;
+use forge::api::agents::{Agent, AgentBuilder, prompt_with_tools, prompt_with_tools_stream};
+use forge::api::dtos::Message;
+use forge::api::dtos::Role::{ASSISTANT, USER};
+use forge::api::request::log_typewriter_effect;
+use forge::api::tools_registry::ToolRegistry;
 use std::sync::Arc;
 
 const SYSTEM_PROMPT: &str = "\
@@ -191,7 +190,7 @@ impl BattleAgent {
         println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
 
         self.history.push(Message {
-            role: Role::USER,
+            role: USER,
             content: Some(user_prompt.clone().into()),
             multi_content: None,
             tool_calls: None,
@@ -200,10 +199,10 @@ impl BattleAgent {
         });
 
         if let Some(agent) = &self.agent {
-            match prompt_with_tools(agent.clone(), self.history.clone()).await {
+            match prompt_with_tools(agent.clone(), self.history.clone(), 10).await {
                 Ok(response) => {
                     self.history.push(Message {
-                        role: Role::ASSISTANT,
+                        role: ASSISTANT,
                         content: Some(response.trim().to_string().into()),
                         multi_content: None,
                         tool_calls: None,
@@ -226,7 +225,7 @@ impl BattleAgent {
         println!("[DEBUG] Prompt Sent to Agent:\n{}", user_prompt.dimmed());
 
         self.history.push(Message {
-            role: Role::USER,
+            role: USER,
             content: Some(user_prompt.clone().into()),
             multi_content: None,
             tool_calls: None,
@@ -235,14 +234,14 @@ impl BattleAgent {
         });
 
         if let Some(agent) = &self.agent {
-            let stream = prompt_with_tools_stream(agent.clone(), self.history.clone()).await?;
+            let stream = prompt_with_tools_stream(agent.clone(), self.history.clone(), 10).await?;
 
             // Print with typewriter effect AND accumulate
             let response = log_typewriter_effect(150, stream).await?;
 
             // Save to history
             self.history.push(Message {
-                role: Role::ASSISTANT,
+                role: ASSISTANT,
                 content: Some(response.trim().to_string().into()),
                 multi_content: None,
                 tool_calls: None,
